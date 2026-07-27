@@ -10,6 +10,29 @@ namespace ZenStatesDebugTool
         {
             InitializeComponent();
             UiLocalization.Apply(this);
+            ConfigureChineseLayout();
+        }
+
+        private void ConfigureChineseLayout()
+        {
+            tableLayoutPanel1.ColumnStyles.Clear();
+            tableLayoutPanel1.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 50F));
+            tableLayoutPanel1.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 50F));
+            tableLayoutPanel1.SetCellPosition(
+                buttonSaveResult,
+                new TableLayoutPanelCellPosition(0, 1));
+            tableLayoutPanel1.SetCellPosition(
+                buttonSaveAs,
+                new TableLayoutPanelCellPosition(1, 1));
+
+            buttonSaveResult.Dock = DockStyle.Left;
+            buttonSaveResult.Margin = new Padding(3, 4, 3, 4);
+            buttonSaveResult.Size = new System.Drawing.Size(96, 28);
+            buttonSaveAs.Dock = DockStyle.Right;
+            buttonSaveAs.Margin = new Padding(3, 4, 3, 4);
+            buttonSaveAs.Size = new System.Drawing.Size(96, 28);
         }
 
         private void SaveToFile(string filename="")

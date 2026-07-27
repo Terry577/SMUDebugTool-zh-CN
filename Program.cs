@@ -17,11 +17,12 @@ namespace ZenStatesDebugTool
             try
             {
                 Form MainForm = new SettingsForm();
-                string appString = $"{Application.ProductName} {Application.ProductVersion.Substring(0, Application.ProductVersion.LastIndexOf('.'))}";
+                string appString =
+                    $"{Application.ProductName} {Application.ProductVersion}";
 #if DEBUG
                 appString += " (debug)";
 #endif
-                MainForm.Text = appString + " zh-CN";
+                MainForm.Text = appString;
                 Application.Run(MainForm);
             }
             catch (ApplicationException ex)

@@ -47,10 +47,12 @@ namespace ZenStatesDebugTool
                 { "OFF", "关闭" },
                 { "ON", "开启" },
                 { "Package", "封装" },
+                { "PState ID", "P 状态 ID" },
                 { "PCI Register", "PCI 寄存器" },
                 { "PCIRangeMonitor", "PCI 范围监视器" },
-                { "PMTable", "功耗管理表" },
+                { "PMTable", "功耗表" },
                 { "PowerTableMonitor", "功耗表监视器" },
+                { "SMUMonitor", "SMU 监视器" },
                 { "Read", "读取" },
                 { "Refresh", "刷新" },
                 { "Refresh Interval", "刷新间隔" },
@@ -71,7 +73,6 @@ namespace ZenStatesDebugTool
                 { "Write", "写入" },
                 { "X3D Turbo Mode", "X3D 加速模式" },
                 { "Apply saved profile on startup", "启动时应用已保存的配置文件" },
-                { "Curve Shaper", "曲线塑形器" },
                 { "MB Vendor", "主板厂商" },
                 { "MB Model", "主板型号" },
                 { "CMD Address", "CMD 地址" },
@@ -82,6 +83,9 @@ namespace ZenStatesDebugTool
         internal static void Apply(Control root)
         {
             TranslateControl(root);
+            Form form = root as Form;
+            if (form != null)
+                ChineseUiLayout.Apply(form);
         }
 
         private static void TranslateControl(Control control)

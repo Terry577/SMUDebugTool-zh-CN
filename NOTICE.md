@@ -11,3 +11,5 @@ SMUDebugTool zh-CN 基于 irusanov/SMUDebugTool 修改。
 本项目依照 GNU General Public License v3.0 发布，完整条款见 `LICENSE.md`。本修改说明不替代许可证。
 
 二进制发布包中的 InpOut、WinIo 兼容文件及其许可证来自原作者的 v1.41 Release。PawnIO 许可证见 `ThirdParty/PawnIO.LICENSE.txt`，驱动安装程序应从 PawnIO 官方网站获取。
+
+现代化界面使用 AntdUI 2.4.3（Copyright © Tom），该组件依据 Apache License 2.0 发布，许可证见 `ThirdParty/AntdUI.LICENSE.txt`。

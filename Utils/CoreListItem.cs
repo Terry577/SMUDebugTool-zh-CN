@@ -15,7 +15,7 @@
 
         public override string ToString()
         {
-            return string.Format("Core {0}", (object)(this.CORE));
+            return string.Format("核心 {0}", (object)(this.CORE));
         }
     }
 }

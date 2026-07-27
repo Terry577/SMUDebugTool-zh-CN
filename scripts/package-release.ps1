@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $false)]
-    [string]$Version = "1.41",
+    [string]$Version = "1.41.1",
 
     [Parameter(Mandatory = $false)]
     [ValidateSet("Debug", "Release")]
@@ -27,6 +27,7 @@ $upstreamUrl = "https://github.com/irusanov/SMUDebugTool/releases/download/v1.41
 $upstreamSha256 = "b55101d7bcc6670bb07cc06b7e7a90bb8c0563c50efb3ff0166e53e56f839023"
 
 $requiredBuildFiles = @(
+    "AntdUI.dll",
     "SMUDebugTool.exe",
     "SMUDebugTool.exe.config",
     "SMUDebugTool.pdb",
@@ -88,6 +89,7 @@ try
     Copy-Item -LiteralPath (Join-Path $repositoryRoot "NOTICE.md") -Destination $packageDirectory
     Copy-Item -LiteralPath (Join-Path $repositoryRoot "LICENSE.md") -Destination (Join-Path $packageDirectory "LICENSE")
     Copy-Item -LiteralPath (Join-Path $repositoryRoot "ThirdParty\PawnIO.LICENSE.txt") -Destination $packageDirectory
+    Copy-Item -LiteralPath (Join-Path $repositoryRoot "ThirdParty\AntdUI.LICENSE.txt") -Destination $packageDirectory
     Copy-Item -LiteralPath (Join-Path $repositoryRoot "ReleaseAssets\INSTALL_PAWNIO.txt") -Destination $packageDirectory
     Copy-Item -LiteralPath (Join-Path $repositoryRoot "ReleaseAssets\INSTALL_PAWNIO.url") -Destination $packageDirectory
     Copy-Item -LiteralPath (Join-Path $repositoryRoot "ReleaseAssets\profiles") -Destination $packageDirectory -Recurse

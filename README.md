@@ -2,6 +2,8 @@
 
 这是 [irusanov/SMUDebugTool](https://github.com/irusanov/SMUDebugTool) 的简体中文汉化版本。项目用于读取和写入 AMD Ryzen 平台的多种底层参数，包括手动超频、SMU、PCI、CPUID、MSR、PBO 和功耗管理表等。
 
+当前汉化版本为 **v1.41.1**，基于原作者 **v1.41** 开发。
+
 ![SMUDebugTool 界面截图](screenshot.png "SMUDebugTool")
 
 ## 汉化说明
@@ -32,6 +34,12 @@
 
 发布包包含原作者 v1.41 提供的 InpOut/WinIo 兼容运行文件及相应许可证。构建脚本会校验原作者发布包的 SHA-256，避免下载内容被意外替换。
 
+## 启动时应用 PBO 配置
+
+1. 在 PBO 页面设置 Curve Optimizer 与 FMax，然后点击“保存”写入配置文件。
+2. 勾选“启动时应用已保存的配置文件”，登录 Windows 后将自动应用 Curve Optimizer。
+3. 如需同时恢复 FMax，再勾选红色的“启动时同时应用 FMax”。该功能读取配置文件中的 `fmax=` 值，不会使用尚未保存的输入值。
+
 ## 同步原项目
 
 首次设置上游仓库：
@@ -56,6 +64,7 @@ git merge upstream/master
 - 原作者及贡献者的版权声明；
 - GPL-3.0 许可证全文；
 - 本项目为修改版以及修改日期的说明；
+- AntdUI 的 Apache License 2.0 许可证；
 - 获取对应源代码的方式。
 
 - 原项目作者：[irusanov](https://github.com/irusanov)
@@ -64,6 +73,7 @@ git merge upstream/master
 
 ## 原项目使用的相关项目
 
+- [AntdUI](https://gitee.com/AntdUI/AntdUI)（现代化 WinForms 界面）
 - [RTCSharp](https://github.com/tomrus88/RTCSharp)
 - [ryzen_smu](https://gitlab.com/leogx9r/ryzen_smu/)
 - [ryzen_nb_smu](https://github.com/flygoat/ryzen_nb_smu)

@@ -20,12 +20,22 @@ using Microsoft.Win32.TaskScheduler;
 using System.Security.Principal;
 using System.Diagnostics;
 using ZenStates.Core.Drivers;
+using AntButton = AntdUI.Button;
+using WinButton = System.Windows.Forms.Button;
 
 namespace ZenStatesDebugTool
 {
     public partial class SettingsForm : Form
     {
         private const string PawnIoDownloadUrl = "https://pawnio.eu/";
+        private static readonly Color ThemeAccentColor =
+            Color.FromArgb(22, 119, 255);
+        private static readonly Color ThemeAccentHoverColor =
+            Color.FromArgb(64, 150, 255);
+        private static readonly Color ThemeAccentActiveColor =
+            Color.FromArgb(9, 88, 217);
+        private static readonly Color ThemeBorderColor =
+            Color.FromArgb(214, 220, 229);
         //private static readonly int Threads = Convert.ToInt32(Environment.GetEnvironmentVariable("NUMBER_OF_PROCESSORS"));
         private BackgroundWorker backgroundWorker1;
         private readonly NUMAUtil _numaUtil;
@@ -43,12 +53,16 @@ namespace ZenStatesDebugTool
         private const string filename = "co_profile.txt";
         private readonly string[] args;
         private readonly bool isApplyProfile;
+        private readonly bool isApplyFmax;
+        private CheckBox checkBoxApplyFmaxStartup;
         private readonly Dictionary<int, NumericUpDown> coControls = new Dictionary<int, NumericUpDown>();
+        private readonly Dictionary<TabPage, AntButton> fixedTabButtons =
+            new Dictionary<TabPage, AntButton>();
 
         public SettingsForm()
         {
             InitializeComponent();
-            UiLocalization.Apply(this);
+            BuildModernInterface();
             toolTip1.SetToolTip(radioButtonManualCoreControl, "手动模式可选择要禁用的特定核心和/或 SMT。");
             toolTip1.SetToolTip(radioButtonX3D, "X3D 模式会禁用 SMT，并在存在第二个 CCD 模块时将其禁用。");
             _numaUtil = new NUMAUtil();
@@ -62,12 +76,28 @@ namespace ZenStatesDebugTool
                 args = Environment.GetCommandLineArgs();
                 foreach (string arg in args)
                 {
-                    isApplyProfile |= (arg.ToLower() == "--applyprofile");
+                    if (string.Equals(
+                        arg,
+                        "--applyprofile",
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        isApplyProfile = true;
+                    }
+                    else if (string.Equals(
+                        arg,
+                        "--applyfmax",
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        isApplyFmax = true;
+                        isApplyProfile = true;
+                    }
                 }
 
                 cpu = new Cpu();
 
                 InitForm();
+                ApplyModernButtons();
+                UiLocalization.Apply(this);
             }
             catch (Exception ex)
             {
@@ -243,6 +273,8 @@ namespace ZenStatesDebugTool
             if (isApplyProfile)
             {
                 ApplyCOProfile();
+                if (isApplyFmax)
+                    ApplySavedFmax();
                 InitPBO();
                 tabControl1.SelectedTab = tabPagePbo;
             }
@@ -250,8 +282,688 @@ namespace ZenStatesDebugTool
             SetStatusText($"{cpu.info.codeName}。就绪。");
         }
 
+        private void ConfigureChineseMainLayout()
+        {
+            SuspendLayout();
+
+            splitContainer1.IsSplitterFixed = true;
+            splitContainer1.FixedPanel = FixedPanel.Panel2;
+            splitContainer1.Panel1MinSize = 690;
+            splitContainer1.Panel2MinSize = 240;
+            splitContainer1.SplitterWidth = 12;
+            splitContainer1.SplitterDistance = 704;
+
+            tabControl1.Padding = new Point(12, 5);
+            tabPageCS.Text = "Curve Shaper";
+            ConfigureFixedTabNavigation();
+            foreach (TabPage tabPage in tabControl1.TabPages)
+            {
+                tabPage.AutoScroll = true;
+                tabPage.Padding = new Padding(6);
+            }
+
+            ConfigureCpuTabLayout();
+            ConfigureSmuTabLayout();
+            ConfigureCommandTable(tableLayoutPanel4);
+            ConfigureCommandTable(tableLayoutPanel5);
+            ConfigurePstateBclkLayout();
+            ConfigureCommandTable(tableLayoutPanel9);
+            ConfigureCommandTable(tableLayoutPanel10);
+            ConfigureCpuidDecodeLayout();
+            ConfigureCurveShaperLayout();
+            ConfigureWmiLayout();
+            ConfigureInfoLayout();
+            ConfigureVisualDesign();
+
+            ResumeLayout(true);
+        }
+
+        private void ConfigureFixedTabNavigation()
+        {
+            tabControl1.Appearance = TabAppearance.FlatButtons;
+            tabControl1.ItemSize = new Size(0, 1);
+            tabControl1.Multiline = false;
+            tabControl1.SizeMode = TabSizeMode.Fixed;
+            tabControl1.Margin = new Padding(0);
+
+            TableLayoutPanel mainHost = new TableLayoutPanel
+            {
+                ColumnCount = 1,
+                Dock = DockStyle.Fill,
+                GrowStyle = TableLayoutPanelGrowStyle.FixedSize,
+                Margin = new Padding(0),
+                Name = "tableLayoutPanelMainHost",
+                Padding = new Padding(0),
+                RowCount = 2
+            };
+            mainHost.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            mainHost.RowStyles.Add(new RowStyle(SizeType.Absolute, 44F));
+            mainHost.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+            TableLayoutPanel navigation = new TableLayoutPanel
+            {
+                BackColor = Color.FromArgb(245, 247, 250),
+                ColumnCount = 10,
+                Dock = DockStyle.Fill,
+                GrowStyle = TableLayoutPanelGrowStyle.FixedSize,
+                Margin = new Padding(0),
+                Name = "tableLayoutPanelFixedTabs",
+                Padding = new Padding(0),
+                RowCount = 1
+            };
+
+            for (int column = 0; column < 10; column++)
+                navigation.ColumnStyles.Add(
+                    new ColumnStyle(SizeType.Percent, 10F));
+            navigation.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+            Controls.Remove(splitContainer1);
+            Controls.Remove(statusStrip1);
+            mainHost.Controls.Add(navigation, 0, 0);
+            mainHost.Controls.Add(splitContainer1, 0, 1);
+            Controls.Add(mainHost);
+            Controls.Add(statusStrip1);
+            tabControl1.Dock = DockStyle.Fill;
+
+            fixedTabButtons.Clear();
+            AddFixedTabButton(navigation, tabPageCPU, "CPU", 0, 0);
+            AddFixedTabButton(navigation, tabPageSmu, "SMU", 1, 0);
+            AddFixedTabButton(navigation, tabPagePci, "PCI", 2, 0);
+            AddFixedTabButton(navigation, tabPageMsr, "MSR", 3, 0);
+            AddFixedTabButton(navigation, tabPageCPUID, "CPUID", 4, 0);
+            AddFixedTabButton(navigation, tabPagePbo, "PBO", 5, 0);
+            AddFixedTabButton(navigation, tabPageCS, "Curve Shaper", 6, 0);
+            AddFixedTabButton(navigation, tabPageWmi, "AMD ACPI", 7, 0);
+            AddFixedTabButton(navigation, tabPagePstates, "PStates", 8, 0);
+            AddFixedTabButton(navigation, tabPageInfo, "信息", 9, 0);
+            UpdateFixedTabButtons();
+        }
+
+        private void AddFixedTabButton(
+            TableLayoutPanel navigation,
+            TabPage tabPage,
+            string text,
+            int column,
+            int row)
+        {
+            AntButton button = new AntButton
+            {
+                Dock = DockStyle.Fill,
+                Margin = new Padding(
+                    column == 0 ? 8 : 3,
+                    6,
+                    column == 9 ? 8 : 3,
+                    5),
+                Padding = new Padding(0),
+                Radius = 7,
+                TabStop = false,
+                Tag = tabPage,
+                Text = text,
+                WaveSize = 0
+            };
+            button.Font = new Font("Microsoft YaHei UI", 8.5F);
+            button.Click += FixedTabButton_Click;
+            navigation.Controls.Add(button, column, row);
+            fixedTabButtons[tabPage] = button;
+        }
+
+        private void FixedTabButton_Click(object sender, EventArgs e)
+        {
+            AntButton button = sender as AntButton;
+            TabPage tabPage = button == null ? null : button.Tag as TabPage;
+            if (tabPage != null)
+                tabControl1.SelectedTab = tabPage;
+        }
+
+        private void UpdateFixedTabButtons()
+        {
+            foreach (KeyValuePair<TabPage, AntButton> pair in fixedTabButtons)
+            {
+                bool selected = pair.Key == tabControl1.SelectedTab;
+                pair.Value.Type = selected
+                    ? AntdUI.TTypeMini.Primary
+                    : AntdUI.TTypeMini.Default;
+                pair.Value.BackColor = selected
+                    ? ThemeAccentColor
+                    : Color.White;
+                pair.Value.BackHover = selected
+                    ? ThemeAccentHoverColor
+                    : Color.FromArgb(237, 244, 255);
+                pair.Value.BackActive = selected
+                    ? ThemeAccentActiveColor
+                    : Color.FromArgb(225, 236, 252);
+                pair.Value.ForeColor = selected
+                    ? Color.White
+                    : Color.FromArgb(38, 48, 64);
+                pair.Value.ForeHover = selected
+                    ? Color.White
+                    : ThemeAccentColor;
+                pair.Value.ForeActive = selected
+                    ? Color.White
+                    : ThemeAccentActiveColor;
+                pair.Value.DefaultBack = Color.White;
+                pair.Value.DefaultBorderColor = selected
+                    ? ThemeAccentColor
+                    : ThemeBorderColor;
+                pair.Value.BorderWidth = 1F;
+            }
+        }
+
+        private void ConfigureCpuTabLayout()
+        {
+            tableLayoutPanel8.SuspendLayout();
+            tableLayoutPanel8.Controls.Clear();
+            tableLayoutPanel8.ColumnStyles.Clear();
+            tableLayoutPanel8.RowStyles.Clear();
+            tableLayoutPanel8.AutoSize = false;
+            tableLayoutPanel8.ColumnCount = 4;
+            tableLayoutPanel8.RowCount = 3;
+            tableLayoutPanel8.Height = 130;
+            tableLayoutPanel8.Padding = new Padding(12, 8, 12, 8);
+            tableLayoutPanel8.ColumnStyles.Clear();
+            tableLayoutPanel8.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 100F));
+            tableLayoutPanel8.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100F));
+            tableLayoutPanel8.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 105F));
+            tableLayoutPanel8.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 88F));
+            tableLayoutPanel8.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 38F));
+            tableLayoutPanel8.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 38F));
+            tableLayoutPanel8.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 38F));
+
+            tableLayoutPanel8.SetColumnSpan(label14, 1);
+            tableLayoutPanel8.SetColumnSpan(label16, 1);
+            tableLayoutPanel8.SetColumnSpan(comboBoxACF, 2);
+            tableLayoutPanel8.SetColumnSpan(checkBoxPROCHOT, 3);
+            label14.Text = "全核频率";
+            label16.Text = "单核频率";
+            label14.TextAlign = ContentAlignment.MiddleLeft;
+            label16.TextAlign = ContentAlignment.MiddleLeft;
+
+            tableLayoutPanel8.Controls.Add(label14, 0, 0);
+            tableLayoutPanel8.Controls.Add(comboBoxACF, 1, 0);
+            tableLayoutPanel8.Controls.Add(buttonApplyAC, 3, 0);
+            tableLayoutPanel8.Controls.Add(label16, 0, 1);
+            tableLayoutPanel8.Controls.Add(comboBoxSCF, 1, 1);
+            tableLayoutPanel8.Controls.Add(comboBoxCore, 2, 1);
+            tableLayoutPanel8.Controls.Add(buttonApplySC, 3, 1);
+            tableLayoutPanel8.Controls.Add(checkBoxPROCHOT, 0, 2);
+            tableLayoutPanel8.Controls.Add(buttonApplyPROCHOT, 3, 2);
+
+            foreach (Control control in tableLayoutPanel8.Controls)
+            {
+                control.Dock = DockStyle.Fill;
+                control.Margin = control is Label
+                    ? new Padding(2, 3, 6, 3)
+                    : new Padding(3, 5, 3, 5);
+            }
+            tableLayoutPanel8.Dock = DockStyle.Fill;
+            tableLayoutPanel8.Margin = new Padding(0, 0, 0, 6);
+            tableLayoutPanel8.ResumeLayout(true);
+
+            groupBoxCoreControl.Dock = DockStyle.Fill;
+            groupBoxCoreControl.Margin = new Padding(0, 6, 0, 0);
+            groupBoxCoreControl.Padding = new Padding(10, 30, 10, 8);
+            groupBoxCoreControl.Text = string.Empty;
+            groupBoxCoreControl.Paint -= GroupBoxCoreControl_Paint;
+            groupBoxCoreControl.Paint += GroupBoxCoreControl_Paint;
+
+            Label sectionTitle = new Label
+            {
+                AutoSize = true,
+                BackColor = Color.White,
+                Font = new Font(Font, FontStyle.Bold),
+                Location = new Point(13, 10),
+                Name = "labelCoreControlSectionTitle",
+                Text = "核心控制"
+            };
+            groupBoxCoreControl.Controls.Add(sectionTitle);
+            sectionTitle.BringToFront();
+
+            TableLayoutPanel cpuHost = new TableLayoutPanel
+            {
+                BackColor = Color.FromArgb(245, 247, 250),
+                ColumnCount = 1,
+                Dock = DockStyle.Fill,
+                GrowStyle = TableLayoutPanelGrowStyle.FixedSize,
+                Margin = new Padding(0),
+                Name = "tableLayoutPanelCpuHost",
+                Padding = new Padding(0),
+                RowCount = 2
+            };
+            cpuHost.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100F));
+            cpuHost.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 142F));
+            cpuHost.RowStyles.Add(
+                new RowStyle(SizeType.Percent, 100F));
+
+            tabPageCPU.Controls.Remove(tableLayoutPanel8);
+            tabPageCPU.Controls.Remove(groupBoxCoreControl);
+            cpuHost.Controls.Add(tableLayoutPanel8, 0, 0);
+            cpuHost.Controls.Add(groupBoxCoreControl, 0, 1);
+            tabPageCPU.Controls.Add(cpuHost);
+
+            groupBoxCoreControl.Resize -= GroupBoxCoreControl_Resize;
+            groupBoxCoreControl.Resize += GroupBoxCoreControl_Resize;
+            LayoutCoreControlGroup();
+        }
+
+        private void GroupBoxCoreControl_Paint(object sender, PaintEventArgs e)
+        {
+            e.Graphics.Clear(Color.White);
+        }
+
+        private void GroupBoxCoreControl_Resize(object sender, EventArgs e)
+        {
+            LayoutCoreControlGroup();
+        }
+
+        private void LayoutCoreControlGroup()
+        {
+            int contentWidth = Math.Max(260, groupBoxCoreControl.ClientSize.Width - 20);
+
+            radioButtonX3D.Location = new Point(12, 37);
+            panelX3D.Size = new Size(104, 31);
+            panelX3D.Location = new Point(
+                Math.Max(140, groupBoxCoreControl.ClientSize.Width - panelX3D.Width - 10),
+                30);
+            button5.Location = new Point(2, 3);
+            button5.Size = new Size(48, 25);
+            button6.Location = new Point(54, 3);
+            button6.Size = new Size(48, 25);
+
+            radioButtonManualCoreControl.Location = new Point(12, 71);
+            panelManualCoreControl.Location = new Point(10, 94);
+            panelManualCoreControl.Size = new Size(
+                contentWidth,
+                Math.Max(115, groupBoxCoreControl.ClientSize.Height - 101));
+            panelManualCoreControl.Anchor =
+                AnchorStyles.Top | AnchorStyles.Bottom |
+                AnchorStyles.Left | AnchorStyles.Right;
+
+            checkBoxSMT.Location = new Point(
+                Math.Max(235, panelManualCoreControl.ClientSize.Width - 78),
+                4);
+            buttonApplyCoreMap.Location = new Point(
+                Math.Max(235, panelManualCoreControl.ClientSize.Width - 82),
+                59);
+            buttonApplyCoreMap.Size = new Size(78, 27);
+            label67.Location = new Point(0, panelManualCoreControl.ClientSize.Height - 23);
+            label67.MaximumSize = new Size(
+                Math.Max(220, panelManualCoreControl.ClientSize.Width - 4),
+                0);
+        }
+
+        private void ConfigureSmuTabLayout()
+        {
+            tableLayoutPanel6.Padding = new Padding(6);
+            tableLayoutPanel6.ColumnStyles.Clear();
+            tableLayoutPanel6.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100F));
+            tableLayoutPanel6.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 100F));
+
+            tableLayoutPanel1.Dock = DockStyle.Fill;
+            tableLayoutPanel1.ColumnStyles.Clear();
+            tableLayoutPanel1.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 112F));
+            tableLayoutPanel1.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100F));
+
+            tableLayoutPanel2.AutoSize = false;
+            tableLayoutPanel2.Dock = DockStyle.Fill;
+            tableLayoutPanel2.GrowStyle = TableLayoutPanelGrowStyle.FixedSize;
+            tableLayoutPanel2.RowStyles.Clear();
+            tableLayoutPanel2.RowCount = 6;
+            for (int row = 0; row < 5; row++)
+            {
+                tableLayoutPanel2.RowStyles.Add(
+                    new RowStyle(SizeType.Absolute, 34F));
+            }
+            tableLayoutPanel2.RowStyles.Add(
+                new RowStyle(SizeType.Percent, 100F));
+            foreach (Control control in tableLayoutPanel2.Controls)
+            {
+                Button button = control as Button;
+                if (button != null)
+                {
+                    button.Dock = DockStyle.Fill;
+                    button.Margin = new Padding(3, 2, 3, 2);
+                }
+            }
+        }
+
+        private static void ConfigureCommandTable(TableLayoutPanel table)
+        {
+            table.Padding = new Padding(6);
+            table.ColumnStyles.Clear();
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 108F));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 12F));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 88F));
+            table.Dock = DockStyle.Top;
+
+            foreach (Control control in table.Controls)
+            {
+                if (control is Button)
+                {
+                    control.Dock = DockStyle.Fill;
+                    control.Margin = new Padding(3, 2, 3, 2);
+                }
+                else if (control is TextBox || control is ComboBox ||
+                         control is NumericUpDown)
+                {
+                    control.Dock = DockStyle.Fill;
+                    control.Margin = new Padding(3, 4, 3, 3);
+                }
+            }
+        }
+
+        private void ConfigureCpuidDecodeLayout()
+        {
+            tableLayoutPanel14.Padding = new Padding(6);
+            tableLayoutPanel14.ColumnStyles.Clear();
+            tableLayoutPanel14.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 108F));
+            tableLayoutPanel14.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100F));
+            tableLayoutPanel14.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 12F));
+            tableLayoutPanel14.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 88F));
+            tableLayoutPanel14.Anchor =
+                AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            tableLayoutPanel14.AutoSize = false;
+            tableLayoutPanel14.Height = 52;
+
+            tabPageCPUID.Resize -= TabPageCpuid_Resize;
+            tabPageCPUID.Resize += TabPageCpuid_Resize;
+            LayoutCpuidDecodePanel();
+        }
+
+        private void TabPageCpuid_Resize(object sender, EventArgs e)
+        {
+            LayoutCpuidDecodePanel();
+        }
+
+        private void LayoutCpuidDecodePanel()
+        {
+            tableLayoutPanel14.Location = new Point(
+                6,
+                tableLayoutPanel10.Bottom + 14);
+            tableLayoutPanel14.Width = Math.Max(
+                300,
+                tabPageCPUID.ClientSize.Width - 12);
+        }
+
+        private void ConfigureCurveShaperLayout()
+        {
+            tableLayoutPanel16.Padding = new Padding(6);
+            tableLayoutPanel16.ColumnStyles.Clear();
+            tableLayoutPanel16.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 54F));
+            tableLayoutPanel16.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 33.33F));
+            tableLayoutPanel16.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 33.33F));
+            tableLayoutPanel16.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 33.34F));
+            tableLayoutPanel16.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 12F));
+            tableLayoutPanel16.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 88F));
+            foreach (Control control in tableLayoutPanel16.Controls)
+            {
+                NumericUpDown numericControl = control as NumericUpDown;
+                if (numericControl != null)
+                {
+                    numericControl.Dock = DockStyle.Fill;
+                    numericControl.Margin = new Padding(4, 4, 4, 3);
+                }
+            }
+        }
+
+        private void ConfigurePstateBclkLayout()
+        {
+            TableLayoutPanel bclkRow = new TableLayoutPanel
+            {
+                ColumnCount = 4,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0),
+                Name = "tableLayoutPanelBclk",
+                Padding = new Padding(0),
+                RowCount = 1,
+                Size = new Size(200, 48)
+            };
+            bclkRow.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 108F));
+            bclkRow.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100F));
+            bclkRow.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 92F));
+            bclkRow.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 88F));
+            bclkRow.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 48F));
+
+            Label bclkLabel = new Label
+            {
+                Dock = DockStyle.Fill,
+                Margin = new Padding(2, 0, 6, 0),
+                Text = "BCLK",
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            numericUpDownBclk.Dock = DockStyle.Fill;
+            numericUpDownBclk.Margin = new Padding(3, 7, 3, 5);
+            labelBCLK.Dock = DockStyle.Fill;
+            labelBCLK.Margin = new Padding(6, 0, 3, 0);
+            labelBCLK.TextAlign = ContentAlignment.MiddleLeft;
+            buttonBCLKApply.Dock = DockStyle.Fill;
+            buttonBCLKApply.Margin = new Padding(3, 5, 3, 5);
+
+            bclkRow.Controls.Add(bclkLabel, 0, 0);
+            bclkRow.Controls.Add(numericUpDownBclk, 1, 0);
+            bclkRow.Controls.Add(labelBCLK, 2, 0);
+            bclkRow.Controls.Add(buttonBCLKApply, 3, 0);
+
+            tableLayoutPanel5.RowCount = 5;
+            while (tableLayoutPanel5.RowStyles.Count < 5)
+                tableLayoutPanel5.RowStyles.Add(new RowStyle());
+            tableLayoutPanel5.RowStyles[4] =
+                new RowStyle(SizeType.Absolute, 48F);
+            tableLayoutPanel5.Controls.Add(bclkRow, 0, 4);
+            tableLayoutPanel5.SetColumnSpan(bclkRow, 4);
+        }
+
+        private void ConfigureWmiLayout()
+        {
+            tableLayoutPanel13.Padding = new Padding(6);
+            tableLayoutPanel13.ColumnStyles.Clear();
+            tableLayoutPanel13.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 92F));
+            tableLayoutPanel13.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100F));
+            buttonWmiCmdSend.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            buttonWmiCmdSend.MinimumSize = new Size(88, 27);
+        }
+
+        private void ConfigureInfoLayout()
+        {
+            tableLayoutPanel3.Padding = new Padding(6);
+            tableLayoutPanel3.ColumnStyles.Clear();
+            tableLayoutPanel3.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 92F));
+            tableLayoutPanel3.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100F));
+            buttonExport.AutoSize = true;
+            buttonExport.MinimumSize = new Size(100, 29);
+        }
+
+        private void ConfigureVisualDesign()
+        {
+            Color pageColor = Color.FromArgb(245, 247, 250);
+            Color cardColor = Color.White;
+            Color borderColor = ThemeBorderColor;
+
+            splitContainer1.BackColor = pageColor;
+            splitContainer1.BorderStyle = BorderStyle.None;
+            splitContainer1.IsSplitterFixed = true;
+            splitContainer1.SplitterWidth = 12;
+            splitContainer1.Panel1.BackColor = pageColor;
+            splitContainer1.Panel2.BackColor = pageColor;
+            splitContainer1.Panel1.Padding = new Padding(14, 12, 6, 12);
+            splitContainer1.Panel2.Padding = new Padding(0, 12, 14, 12);
+
+            statusStrip1.BackColor = pageColor;
+            statusStrip1.SizingGrip = false;
+            statusStrip1.Padding = new Padding(9, 0, 9, 0);
+
+            foreach (TabPage tabPage in tabControl1.TabPages)
+            {
+                tabPage.BackColor = pageColor;
+                tabPage.UseVisualStyleBackColor = false;
+                tabPage.Padding = new Padding(12);
+            }
+
+            TableLayoutPanel[] cards =
+            {
+                tableLayoutPanel1,
+                tableLayoutPanel2,
+                tableLayoutPanel3,
+                tableLayoutPanel4,
+                tableLayoutPanel5,
+                tableLayoutPanel8,
+                tableLayoutPanel9,
+                tableLayoutPanel10,
+                tableLayoutPanel12,
+                tableLayoutPanel13,
+                tableLayoutPanel14,
+                tableLayoutPanel16
+            };
+            foreach (TableLayoutPanel card in cards)
+            {
+                card.BackColor = cardColor;
+                card.BorderStyle = BorderStyle.None;
+            }
+            groupBoxCoreControl.BackColor = cardColor;
+
+            ConfigureOutputPanel(cardColor, pageColor, borderColor);
+            ModernUi.WrapCards(
+                cards.Concat(new Control[]
+                {
+                    groupBoxCoreControl,
+                    tableLayoutPanel11
+                }),
+                cardColor,
+                borderColor);
+        }
+
+        private void ApplyModernButtons()
+        {
+            WinButton[] primaryButtons =
+            {
+                buttonApply,
+                buttonApplyAC,
+                buttonApplySC,
+                buttonApplyPROCHOT,
+                buttonApplyCoreMap,
+                buttonPciWrite,
+                buttonMsrWrite,
+                buttonApplyCO,
+                buttonApplyFMax,
+                buttonApplyCS,
+                buttonWmiCmdSend,
+                buttonBCLKApply,
+                btnPstateWrite,
+                button5
+            };
+            ModernUi.UpgradeButtons(
+                this,
+                new HashSet<WinButton>(primaryButtons),
+                toolTip1,
+                ThemeAccentColor,
+                ThemeAccentHoverColor,
+                ThemeAccentActiveColor,
+                ThemeBorderColor);
+            ModernUi.UpgradeSelectionControls(
+                this,
+                toolTip1,
+                ThemeAccentColor);
+        }
+
+        private void ConfigureOutputPanel(
+            Color cardColor,
+            Color pageColor,
+            Color borderColor)
+        {
+            tableLayoutPanel11.SuspendLayout();
+            tableLayoutPanel11.Controls.Clear();
+            tableLayoutPanel11.ColumnStyles.Clear();
+            tableLayoutPanel11.RowStyles.Clear();
+            tableLayoutPanel11.BackColor = cardColor;
+            tableLayoutPanel11.BorderStyle = BorderStyle.None;
+            tableLayoutPanel11.ColumnCount = 1;
+            tableLayoutPanel11.RowCount = 2;
+            tableLayoutPanel11.Padding = new Padding(0);
+            tableLayoutPanel11.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100F));
+            tableLayoutPanel11.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 40F));
+            tableLayoutPanel11.RowStyles.Add(
+                new RowStyle(SizeType.Percent, 100F));
+
+            Label outputHeader = new Label
+            {
+                BackColor = cardColor,
+                Dock = DockStyle.Fill,
+                Font = new Font(Font, FontStyle.Bold),
+                Margin = new Padding(0),
+                Padding = new Padding(20, 0, 0, 0),
+                Text = "输出",
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            outputHeader.Paint += delegate(object sender, PaintEventArgs e)
+            {
+                using (Pen pen = new Pen(borderColor))
+                {
+                    e.Graphics.DrawLine(
+                        pen,
+                        0,
+                        outputHeader.Height - 1,
+                        outputHeader.Width,
+                        outputHeader.Height - 1);
+                }
+                using (Pen pen = new Pen(ThemeAccentColor, 3F))
+                {
+                    pen.StartCap = System.Drawing.Drawing2D.LineCap.Round;
+                    pen.EndCap = System.Drawing.Drawing2D.LineCap.Round;
+                    e.Graphics.DrawLine(
+                        pen,
+                        10,
+                        13,
+                        10,
+                        outputHeader.Height - 13);
+                }
+            };
+
+            textBoxResult.BackColor = cardColor;
+            textBoxResult.BorderStyle = BorderStyle.None;
+            textBoxResult.Dock = DockStyle.Fill;
+            textBoxResult.Margin = new Padding(12, 10, 8, 8);
+            tableLayoutPanel11.Controls.Add(outputHeader, 0, 0);
+            tableLayoutPanel11.Controls.Add(textBoxResult, 0, 1);
+            tableLayoutPanel11.ResumeLayout(true);
+        }
+
         private void ApplyCOProfile ()
         {
+            numericUpDownFmax.Tag = null;
             List<Tuple<int, int>> margins = LoadCOProfile();
             if (margins.Count > 0 && cpu.smu.Rsmu.SMU_MSG_SetDldoPsmMargin != 0)
             {
@@ -265,6 +977,37 @@ namespace ZenStatesDebugTool
                         cpu.SetPsmMarginSingleCore(EncodeCoreMarginBitmask(index), Convert.ToInt32(value));
                     }
                 }
+            }
+        }
+
+        private void ApplySavedFmax()
+        {
+            if (!(numericUpDownFmax.Tag is decimal))
+            {
+                HandleError(
+                    "配置文件中没有可应用的 FMax 值。");
+                return;
+            }
+
+            decimal savedFmax =
+                (decimal)numericUpDownFmax.Tag;
+            uint targetFmax = decimal.ToUInt32(savedFmax);
+            if (cpu.SetFMax(targetFmax))
+            {
+                numericUpDownFmax.Value = cpu.GetFMax();
+                textBoxResult.Text =
+                    string.Format(
+                        "启动时已应用 FMax：{0} MHz。",
+                        numericUpDownFmax.Value) +
+                    Environment.NewLine +
+                    textBoxResult.Text;
+            }
+            else
+            {
+                HandleError(
+                    string.Format(
+                        "启动时应用 FMax {0} MHz 失败。",
+                        targetFmax));
             }
         }
 
@@ -417,82 +1160,161 @@ namespace ZenStatesDebugTool
                 }
             }*/
 
-            checkBoxApplyCOStartup.Checked = TaskExists("RyzenSDT");
+            bool startupEnabled = TaskExists("RyzenSDT");
+            checkBoxApplyCOStartup.Checked = startupEnabled;
+            checkBoxApplyFmaxStartup.Checked =
+                startupEnabled &&
+                TaskHasArgument("RyzenSDT", "--applyfmax");
+            checkBoxApplyFmaxStartup.Enabled = true;
             numericUpDownFmax.Value = cpu.GetFMax();
         }
 
         private void InitPboLayout()
         {
-            BuildCoActionBar();
+            tableLayoutPanel12.SuspendLayout();
+
+            tableLayoutPanel12.Controls.Clear();
+            tableLayoutPanel12.ColumnStyles.Clear();
+            tableLayoutPanel12.RowStyles.Clear();
+            tableLayoutPanel12.AutoSize = false;
+            tableLayoutPanel12.GrowStyle = TableLayoutPanelGrowStyle.AddRows;
+            tableLayoutPanel12.ColumnCount = 2;
+            tableLayoutPanel12.RowCount = 4;
+            tableLayoutPanel12.Padding = new Padding(5, 4, 5, 4);
+            tableLayoutPanel12.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100F));
+            tableLayoutPanel12.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 88F));
+            tableLayoutPanel12.RowStyles.Add(
+                new RowStyle(SizeType.Percent, 100F));
+            tableLayoutPanel12.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 31F));
+            tableLayoutPanel12.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 37F));
+            tableLayoutPanel12.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 36F));
+
+            ConfigurePboActionColumn();
+            ConfigurePboFooter();
             BuildCcdBlocks();
+
+            tableLayoutPanel12.SetColumnSpan(flowLayoutPanelCOList, 1);
+            tableLayoutPanel12.SetColumnSpan(flowLayoutPanelPboActions, 1);
+            tableLayoutPanel12.Controls.Add(flowLayoutPanelCOList, 0, 0);
+            tableLayoutPanel12.Controls.Add(flowLayoutPanelPboActions, 1, 0);
+            tableLayoutPanel12.Controls.Add(checkBoxApplyCOStartup, 0, 1);
+            tableLayoutPanel12.SetColumnSpan(checkBoxApplyCOStartup, 2);
+            tableLayoutPanel12.Controls.Add(
+                checkBoxApplyFmaxStartup,
+                0,
+                2);
+            tableLayoutPanel12.SetColumnSpan(
+                checkBoxApplyFmaxStartup,
+                2);
+
+            TableLayoutPanel fmaxRow = new TableLayoutPanel
+            {
+                ColumnCount = 3,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0),
+                Name = "tableLayoutPanelFmax",
+                RowCount = 1
+            };
+            fmaxRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 55F));
+            fmaxRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            fmaxRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 88F));
+            fmaxRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            fmaxRow.Controls.Add(label51, 0, 0);
+            fmaxRow.Controls.Add(numericUpDownFmax, 1, 0);
+            fmaxRow.Controls.Add(buttonApplyFMax, 2, 0);
+            tableLayoutPanel12.Controls.Add(fmaxRow, 0, 3);
+            tableLayoutPanel12.SetColumnSpan(fmaxRow, 2);
+
+            tableLayoutPanel12.ResumeLayout(true);
         }
 
-        private void BuildCoActionBar()
+        private void ConfigurePboActionColumn()
         {
-            // Repurpose flowLayoutPanelCcdActions as the CO-section action bar
-            flowLayoutPanelCcdActions.Controls.Clear();
-            flowLayoutPanelCcdActions.WrapContents = false;
-            flowLayoutPanelCcdActions.Visible = true;
-            //flowLayoutPanelCcdActions.AutoSize = false;
-            flowLayoutPanelCcdActions.FlowDirection = FlowDirection.LeftToRight;
-            flowLayoutPanelCcdActions.Dock = DockStyle.Fill;
-
-            Button applyBtn = new Button
+            flowLayoutPanelPboActions.Controls.Clear();
+            flowLayoutPanelPboActions.ColumnStyles.Clear();
+            flowLayoutPanelPboActions.RowStyles.Clear();
+            flowLayoutPanelPboActions.AutoSize = false;
+            flowLayoutPanelPboActions.GrowStyle =
+                TableLayoutPanelGrowStyle.AddRows;
+            flowLayoutPanelPboActions.ColumnCount = 1;
+            flowLayoutPanelPboActions.RowCount = 6;
+            flowLayoutPanelPboActions.Dock = DockStyle.Fill;
+            flowLayoutPanelPboActions.Margin = new Padding(5, 0, 0, 0);
+            flowLayoutPanelPboActions.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100F));
+            flowLayoutPanelPboActions.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 28F));
+            for (int row = 1; row <= 4; row++)
             {
-                AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowOnly,
-                Margin = new Padding(1, 0, 1, 0),
-                Padding = new Padding(0),
-                Size = new Size(106, 25),
-                Text = "应用",
-                UseVisualStyleBackColor = true,
-                Dock = DockStyle.Fill,
-            };
-            applyBtn.Click += ButtonApplyCO_Click;
+                flowLayoutPanelPboActions.RowStyles.Add(
+                    new RowStyle(SizeType.Absolute, 28F));
+            }
+            flowLayoutPanelPboActions.RowStyles.Add(
+                new RowStyle(SizeType.Percent, 100F));
 
-            Button allDecBtn = new Button
-            {
-                AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowOnly,
-                Margin = new Padding(1, 0, 1, 0),
-                Padding = new Padding(0),
-                Size = new Size(106, 25),
-                Text = "全部 \u2212",
-                UseVisualStyleBackColor = true,
-                Dock = DockStyle.Fill,
-            };
-            allDecBtn.Click += AllCcdDecrement_Click;
+            buttonApplyCO.Text = "应用";
+            ConfigurePboActionButton(buttonApplyCO);
+            ConfigurePboActionButton(buttonGetCO);
+            ConfigurePboActionButton(btnSaveCOProfile);
+            ConfigurePboActionButton(btnLoadCOProfile);
 
-            Button allIncBtn = new Button
-            {
-                AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowOnly,
-                Margin = new Padding(1, 0, 1, 0),
-                Padding = new Padding(0),
-                Size = new Size(106, 25),
-                Text = "全部 +",
-                UseVisualStyleBackColor = true,
-                Dock = DockStyle.Fill,
-            };
-            allIncBtn.Click += AllCcdIncrement_Click;
-
-            flowLayoutPanelCcdActions.Controls.Add(allDecBtn);
-            flowLayoutPanelCcdActions.Controls.Add(allIncBtn);
-            flowLayoutPanelCcdActions.Controls.Add(applyBtn);
+            flowLayoutPanelPboActions.Controls.Add(buttonApplyCO, 0, 1);
+            flowLayoutPanelPboActions.Controls.Add(buttonGetCO, 0, 2);
+            flowLayoutPanelPboActions.Controls.Add(btnSaveCOProfile, 0, 3);
+            flowLayoutPanelPboActions.Controls.Add(btnLoadCOProfile, 0, 4);
         }
 
-        private void AllCcdDecrement_Click(object sender, EventArgs e)
+        private static void ConfigurePboActionButton(Button button)
         {
-            int ccdCount = GetCcdCount();
-            for (int ccd = 0; ccd < ccdCount; ccd++)
-                BulkMarginChangeHandler(ccd, -1);
+            button.AutoSize = false;
+            button.Dock = DockStyle.Fill;
+            button.Margin = new Padding(0, 2, 0, 2);
+            button.Padding = new Padding(0);
         }
 
-        private void AllCcdIncrement_Click(object sender, EventArgs e)
+        private void ConfigurePboFooter()
         {
-            int ccdCount = GetCcdCount();
-            for (int ccd = 0; ccd < ccdCount; ccd++)
-                BulkMarginChangeHandler(ccd, 1);
+            if (checkBoxApplyFmaxStartup == null)
+            {
+                checkBoxApplyFmaxStartup = new CheckBox
+                {
+                    AutoSize = true,
+                    ForeColor = Color.FromArgb(205, 45, 45),
+                    Name = "checkBoxApplyFmaxStartup",
+                    TabIndex = 56,
+                    Text = "启动时同时应用 FMax"
+                };
+                checkBoxApplyFmaxStartup.Click +=
+                    CheckBoxApplyFmaxStartup_Click;
+                toolTip1.SetToolTip(
+                    checkBoxApplyFmaxStartup,
+                    "登录时同时应用配置文件中保存的 FMax 值。");
+            }
+
+            checkBoxApplyCOStartup.AutoSize = true;
+            checkBoxApplyCOStartup.Dock = DockStyle.Left;
+            checkBoxApplyCOStartup.Margin = new Padding(2, 2, 0, 2);
+
+            checkBoxApplyFmaxStartup.Dock = DockStyle.Left;
+            checkBoxApplyFmaxStartup.Margin =
+                new Padding(2, 2, 0, 6);
+
+            label51.AutoSize = true;
+            label51.Dock = DockStyle.Fill;
+            label51.Margin = new Padding(2, 4, 3, 3);
+            label51.TextAlign = ContentAlignment.MiddleLeft;
+
+            numericUpDownFmax.Dock = DockStyle.Fill;
+            numericUpDownFmax.Margin = new Padding(0, 4, 5, 3);
+
+            buttonApplyFMax.AutoSize = false;
+            buttonApplyFMax.Dock = DockStyle.Fill;
+            buttonApplyFMax.Margin = new Padding(0, 2, 0, 2);
         }
 
         private void BuildCcdBlocks()
@@ -501,144 +1323,177 @@ namespace ZenStatesDebugTool
 
             flowLayoutPanelCOList.SuspendLayout();
             flowLayoutPanelCOList.Controls.Clear();
-            flowLayoutPanelCOList.WrapContents = true;
+            flowLayoutPanelCOList.AutoScroll = true;
+            flowLayoutPanelCOList.FlowDirection = FlowDirection.TopDown;
+            flowLayoutPanelCOList.WrapContents = false;
+            flowLayoutPanelCOList.Dock = DockStyle.Fill;
+            flowLayoutPanelCOList.Margin = new Padding(0);
             flowLayoutPanelCOList.Padding = new Padding(0);
 
             int ccdCount = GetCcdCount();
-            const int coresPerCcd = 8;
-            const int panelWidth = 160;
-            const int headerHeight = 19;
-            const int rowHeight = 21;
-            const int coresPerRow = 2;
-            // label width wide enough for "C127"
-            const int labelWidth = 30;
-            const int nudWidth = 44;
-            const int colSpacing = 6;
-            // left column x-offsets
-            const int col0LabelX = 2;
-            const int col0NudX = col0LabelX + labelWidth;
-            // right column x-offsets
-            const int col1LabelX = col0NudX + nudWidth + colSpacing;
-            const int col1NudX = col1LabelX + labelWidth;
-
-            for (int ccd = 0; ccd < ccdCount; ccd++)
+            for (int firstCcd = 0; firstCcd < ccdCount; firstCcd += 2)
             {
-                int startCore = ccd * coresPerCcd;
-                int endCore = Math.Min(startCore + coresPerCcd, GetPhysicalCoreCount());
-                int coresInCcd = endCore - startCore;
-                if (coresInCcd <= 0) break;
-
-                int coreRows = (int)Math.Ceiling(coresInCcd / (double)coresPerRow);
-                int panelHeight = headerHeight + coreRows * rowHeight + 4;
-
-                Panel ccdPanel = new Panel
-                {
-                    BorderStyle = BorderStyle.FixedSingle,
-                    Margin = new Padding(1),
-                    Name = $"panelCCD_{ccd}",
-                    Size = new Size(panelWidth, panelHeight)
-                };
-
-                // Header label
-                Label ccdLabel = new Label
-                {
-                    AutoSize = false,
-                    BackColor = SystemColors.ControlDark,
-                    ForeColor = SystemColors.ControlLightLight,
-                    Font = new Font("Microsoft Sans Serif", 7.5f, FontStyle.Bold),
-                    Location = new Point(0, 0),
-                    Padding = new Padding(3, 0, 0, 0),
-                    // leave room for the two small buttons on the right
-                    Size = new Size(panelWidth - 36, headerHeight),
-                    Text = $"CCD {ccd}",
-                    TextAlign = ContentAlignment.MiddleLeft
-                };
-
-                // Decrement button
-                Button decBtn = new Button
-                {
-                    BackColor = SystemColors.ControlDark,
-                    FlatStyle = FlatStyle.Flat,
-                    Font = new Font("Microsoft Sans Serif", 7f, FontStyle.Bold),
-                    ForeColor = SystemColors.ControlLightLight,
-                    Location = new Point(panelWidth - 36, 1),
-                    Margin = new Padding(0),
-                    Size = new Size(16, headerHeight - 2),
-                    Tag = Tuple.Create(ccd, -1),
-                    Text = "\u2212",
-                    UseVisualStyleBackColor = false
-                };
-                decBtn.FlatAppearance.BorderSize = 0;
-                decBtn.Click += CcdBulkButton_Click;
-
-                // Increment button
-                Button incBtn = new Button
-                {
-                    BackColor = SystemColors.ControlDark,
-                    FlatStyle = FlatStyle.Flat,
-                    Font = new Font("Microsoft Sans Serif", 7f, FontStyle.Bold),
-                    ForeColor = SystemColors.ControlLightLight,
-                    Location = new Point(panelWidth - 19, 1),
-                    Margin = new Padding(0),
-                    Size = new Size(16, headerHeight - 2),
-                    Tag = Tuple.Create(ccd, 1),
-                    Text = "+",
-                    UseVisualStyleBackColor = false
-                };
-                incBtn.FlatAppearance.BorderSize = 0;
-                incBtn.Click += CcdBulkButton_Click;
-
-                ccdPanel.Controls.Add(ccdLabel);
-                ccdPanel.Controls.Add(decBtn);
-                ccdPanel.Controls.Add(incBtn);
-
-                // Core grid: column-major (top-to-bottom, then next column)
-                int yOffset = headerHeight + 1;
-                for (int row = 0; row < coreRows; row++)
-                {
-                    for (int col = 0; col < coresPerRow; col++)
-                    {
-                        // column-major index: col 0 = cores 0..coreRows-1, col 1 = cores coreRows..end
-                        int localIndex = col * coreRows + row;
-                        if (localIndex >= coresInCcd) continue;
-
-                        int coreIndex = startCore + localIndex;
-                        int labelX = col == 0 ? col0LabelX : col1LabelX;
-                        int nudX = col == 0 ? col0NudX : col1NudX;
-
-                        Label lbl = new Label
-                        {
-                            Location = new Point(labelX, yOffset + 3),
-                            Name = $"labelCO_{coreIndex}",
-                            Size = new Size(labelWidth, 14),
-                            Text = $"C{coreIndex}",
-                            TextAlign = ContentAlignment.MiddleLeft
-                        };
-
-                        NumericUpDown nud = new NumericUpDown
-                        {
-                            Enabled = false,
-                            Location = new Point(nudX, yOffset),
-                            Margin = new Padding(0),
-                            Maximum = 999,
-                            Minimum = -999,
-                            Name = $"numericUpDownCO_{coreIndex}",
-                            Size = new Size(nudWidth, 20),
-                            Tag = coreIndex
-                        };
-
-                        ccdPanel.Controls.Add(lbl);
-                        ccdPanel.Controls.Add(nud);
-                        coControls[coreIndex] = nud;
-                    }
-
-                    yOffset += rowHeight;
-                }
-
-                flowLayoutPanelCOList.Controls.Add(ccdPanel);
+                TableLayoutPanel section = BuildCcdPairSection(
+                    firstCcd,
+                    firstCcd + 1 < ccdCount ? (int?)firstCcd + 1 : null);
+                flowLayoutPanelCOList.Controls.Add(section);
             }
 
+            ResizePboCoreSections();
+            flowLayoutPanelCOList.SizeChanged -= FlowLayoutPanelCOList_SizeChanged;
+            flowLayoutPanelCOList.SizeChanged += FlowLayoutPanelCOList_SizeChanged;
             flowLayoutPanelCOList.ResumeLayout();
+        }
+
+        private TableLayoutPanel BuildCcdPairSection(int leftCcd, int? rightCcd)
+        {
+            List<int> leftCores = GetCoresForCcd(leftCcd);
+            if (!rightCcd.HasValue)
+                return BuildSingleCcdSection(leftCcd, leftCores);
+
+            List<int> rightCores = GetCoresForCcd(rightCcd.Value);
+            int coreRows = Math.Max(leftCores.Count, rightCores.Count);
+            TableLayoutPanel section = new TableLayoutPanel
+            {
+                ColumnCount = 6,
+                RowCount = coreRows + 2,
+                Height = (coreRows + 2) * 27,
+                Margin = new Padding(0, 0, 0, 5),
+                Name = $"tableLayoutPanelCcdPair_{leftCcd}",
+                Padding = new Padding(0)
+            };
+            section.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 78F));
+            section.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 126F));
+            section.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 28F));
+            section.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 78F));
+            section.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 126F));
+            section.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            for (int row = 0; row < section.RowCount; row++)
+                section.RowStyles.Add(new RowStyle(SizeType.Absolute, 27F));
+
+            section.Controls.Add(CreateCcdTitleLabel(leftCcd), 0, 0);
+            section.Controls.Add(CreateCcdTitleLabel(rightCcd.Value), 3, 0);
+            section.Controls.Add(CreateCcdAdjustButton(leftCcd, 1), 1, 0);
+            section.Controls.Add(CreateCcdAdjustButton(rightCcd.Value, 1), 4, 0);
+            section.Controls.Add(CreateCcdAdjustButton(leftCcd, -1), 1, coreRows + 1);
+            section.Controls.Add(CreateCcdAdjustButton(rightCcd.Value, -1), 4, coreRows + 1);
+
+            AddCoreColumn(section, leftCores, 0);
+            AddCoreColumn(section, rightCores, 3);
+            return section;
+        }
+
+        private TableLayoutPanel BuildSingleCcdSection(int ccd, IList<int> cores)
+        {
+            int coreRows = cores.Count;
+            TableLayoutPanel section = new TableLayoutPanel
+            {
+                ColumnCount = 6,
+                RowCount = coreRows + 2,
+                Height = (coreRows + 2) * 27,
+                Margin = new Padding(0, 0, 0, 5),
+                Name = $"tableLayoutPanelCcd_{ccd}",
+                Padding = new Padding(0)
+            };
+            section.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 78F));
+            section.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 126F));
+            section.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 28F));
+            section.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 78F));
+            section.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 126F));
+            section.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            for (int row = 0; row < section.RowCount; row++)
+                section.RowStyles.Add(new RowStyle(SizeType.Absolute, 27F));
+
+            section.Controls.Add(CreateCcdTitleLabel(ccd), 0, 0);
+            section.Controls.Add(CreateCcdAdjustButton(ccd, 1), 1, 0);
+            section.Controls.Add(CreateCcdAdjustButton(ccd, -1), 1, coreRows + 1);
+            AddCoreColumn(section, cores, 0);
+            return section;
+        }
+
+        private static Label CreateCcdTitleLabel(int ccd)
+        {
+            return new Label
+            {
+                AutoEllipsis = true,
+                Dock = DockStyle.Fill,
+                Font = new Font("Microsoft YaHei UI", 8.5F, FontStyle.Bold),
+                Margin = new Padding(2, 0, 0, 0),
+                Text = $"CCD {ccd}",
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+        }
+
+        private List<int> GetCoresForCcd(int ccd)
+        {
+            int startCore = ccd * 8;
+            int endCore = Math.Min(startCore + 8, GetPhysicalCoreCount());
+            return Enumerable.Range(startCore, Math.Max(0, endCore - startCore)).ToList();
+        }
+
+        private void AddCoreColumn(TableLayoutPanel section, IList<int> coreIndexes, int labelColumn)
+        {
+            for (int index = 0; index < coreIndexes.Count; index++)
+            {
+                int coreIndex = coreIndexes[index];
+                Label label = new Label
+                {
+                    AutoEllipsis = true,
+                    Dock = DockStyle.Fill,
+                    Margin = new Padding(2, 0, 0, 0),
+                    Name = $"labelCO_{coreIndex}",
+                    Text = $"核心 {coreIndex}",
+                    TextAlign = ContentAlignment.MiddleLeft
+                };
+                NumericUpDown marginControl = new NumericUpDown
+                {
+                    Dock = DockStyle.Fill,
+                    Enabled = false,
+                    Margin = new Padding(1, 4, 3, 3),
+                    Maximum = 999,
+                    Minimum = -999,
+                    Name = $"numericUpDownCO_{coreIndex}",
+                    Tag = coreIndex
+                };
+
+                section.Controls.Add(label, labelColumn, index + 1);
+                section.Controls.Add(marginControl, labelColumn + 1, index + 1);
+                coControls[coreIndex] = marginControl;
+            }
+        }
+
+        private Button CreateCcdAdjustButton(int ccd, int step)
+        {
+            Button button = new Button
+            {
+                Dock = DockStyle.Fill,
+                Margin = new Padding(3, 2, 3, 2),
+                Tag = Tuple.Create(ccd, step),
+                Text = step > 0 ? "+" : "\u2212",
+                UseVisualStyleBackColor = true
+            };
+            button.Click += CcdBulkButton_Click;
+            toolTip1.SetToolTip(
+                button,
+                $"将 CCD {ccd} 的全部核心偏移量{(step > 0 ? "增加" : "减少")} 1");
+            return button;
+        }
+
+        private void FlowLayoutPanelCOList_SizeChanged(object sender, EventArgs e)
+        {
+            ResizePboCoreSections();
+        }
+
+        private void ResizePboCoreSections()
+        {
+            int width = flowLayoutPanelCOList.ClientSize.Width -
+                        flowLayoutPanelCOList.Padding.Horizontal - 1;
+            if (flowLayoutPanelCOList.VerticalScroll.Visible)
+                width -= SystemInformation.VerticalScrollBarWidth;
+
+            width = Math.Max(210, width);
+            foreach (Control control in flowLayoutPanelCOList.Controls)
+                control.Width = width;
         }
 
         private void CcdBulkButton_Click(object sender, EventArgs e)
@@ -1249,6 +2104,7 @@ namespace ZenStatesDebugTool
 
         private void TabControl1_Selected(object sender, TabControlEventArgs e)
         {
+            UpdateFixedTabButtons();
             if (e.TabPage == tabPageInfo)
                 splitContainer1.Panel2Collapsed = true;
             else if (splitContainer1.Panel2Collapsed)
@@ -2053,24 +2909,27 @@ namespace ZenStatesDebugTool
                 }
             }
 
-            if (margins.Count > 0)
+            try
             {
-                try
+                using (StreamWriter file = new StreamWriter(defaultsPath))
                 {
-                    using (StreamWriter file = new StreamWriter(defaultsPath))
-                    {
-                        foreach (var entry in margins)
-                            file.WriteLine("[{0},{1}]", entry.Item1, entry.Item2);
+                    foreach (var entry in margins)
+                        file.WriteLine("[{0},{1}]", entry.Item1, entry.Item2);
 
-                        file.WriteLine("fmax={0}", numericUpDownFmax.Value);
+                    file.WriteLine(
+                        "fmax={0}",
+                        numericUpDownFmax.Value.ToString(
+                            CultureInfo.InvariantCulture));
 
-                        textBoxResult.Text = $"配置文件已保存至 {defaultsPath}" + Environment.NewLine + textBoxResult.Text;
-                    }
+                    textBoxResult.Text =
+                        $"配置文件已保存至 {defaultsPath}" +
+                        Environment.NewLine +
+                        textBoxResult.Text;
                 }
-                catch (Exception)
-                {
-                    HandleError("无法将配置文件保存到文件！");
-                }
+            }
+            catch (Exception)
+            {
+                HandleError("无法将配置文件保存到文件！");
             }
         }
 
@@ -2157,7 +3016,31 @@ namespace ZenStatesDebugTool
             }
         }
 
-        static void AddTaskToScheduler(string taskName, string executablePath, int delaySeconds = 0)
+        static bool TaskHasArgument(
+            string taskName,
+            string argument)
+        {
+            using (TaskService taskService = new TaskService())
+            {
+                Task task = taskService.GetTask(taskName);
+                if (task == null)
+                    return false;
+
+                return task.Definition.Actions
+                    .OfType<ExecAction>()
+                    .Any(action =>
+                        !string.IsNullOrEmpty(action.Arguments) &&
+                        action.Arguments.IndexOf(
+                            argument,
+                            StringComparison.OrdinalIgnoreCase) >= 0);
+            }
+        }
+
+        static void AddTaskToScheduler(
+            string taskName,
+            string executablePath,
+            bool applyFmax,
+            int delaySeconds = 0)
         {
             // Create a new task service
             using (TaskService taskService = new TaskService())
@@ -2166,7 +3049,10 @@ namespace ZenStatesDebugTool
                 TaskDefinition taskDefinition = taskService.NewTask();
 
                 // Set the task properties
-                taskDefinition.RegistrationInfo.Description = "用户登录时运行 Ryzen SMU Debug Tool 以应用 CO 配置文件。由 RyzenSDT 自动创建，可手动删除或在 PBO 选项卡中取消勾选。";
+                taskDefinition.RegistrationInfo.Description =
+                    applyFmax
+                        ? "用户登录时运行 Ryzen SMU Debug Tool，以应用 CO 配置文件和已保存的 FMax。由 RyzenSDT 自动创建。"
+                        : "用户登录时运行 Ryzen SMU Debug Tool，以应用 CO 配置文件。由 RyzenSDT 自动创建。";
                 taskDefinition.Principal.UserId = WindowsIdentity.GetCurrent().Name;
                 taskDefinition.Principal.RunLevel = TaskRunLevel.Highest;
                 taskDefinition.Principal.LogonType = TaskLogonType.InteractiveToken;
@@ -2177,7 +3063,13 @@ namespace ZenStatesDebugTool
                 taskDefinition.Triggers.Add(logonTrigger);
 
                 // Create an action that runs the specified executable
-                ExecAction execAction = new ExecAction(executablePath, "--applyprofile");
+                string startupArguments = applyFmax
+                    ? "--applyprofile --applyfmax"
+                    : "--applyprofile";
+                ExecAction execAction =
+                    new ExecAction(
+                        executablePath,
+                        startupArguments);
                 taskDefinition.Actions.Add(execAction);
 
                 // Register the task in the root folder of the Task Scheduler
@@ -2209,11 +3101,18 @@ namespace ZenStatesDebugTool
                 }
             }*/
 
-            if (isChecked && !TaskExists("RyzenSDT"))
+            if (isChecked)
             {
-                AddTaskToScheduler("RyzenSDT", Application.ExecutablePath, 0);
+                bool applyFmax =
+                    checkBoxApplyFmaxStartup != null &&
+                    checkBoxApplyFmaxStartup.Checked;
+                AddTaskToScheduler(
+                    "RyzenSDT",
+                    Application.ExecutablePath,
+                    applyFmax,
+                    0);
             }
-            else
+            else if (TaskExists("RyzenSDT"))
             {
                 RemoveTaskFromScheduler("RyzenSDT");
             }
@@ -2221,8 +3120,30 @@ namespace ZenStatesDebugTool
 
         private void CheckBoxApplyCOStartup_CheckedChanged(object sender, EventArgs e)
         {
-            SetStartup((sender as CheckBox).Checked);
+            CheckBox startup = sender as CheckBox;
+            bool enabled =
+                startup != null && startup.Checked;
+            if (!enabled)
+                checkBoxApplyFmaxStartup.Checked = false;
+            SetStartup(enabled);
             textBoxResult.Text = "启动设置已保存。" + Environment.NewLine + textBoxResult.Text;
+        }
+
+        private void CheckBoxApplyFmaxStartup_Click(
+            object sender,
+            EventArgs e)
+        {
+            if (checkBoxApplyFmaxStartup.Checked &&
+                !checkBoxApplyCOStartup.Checked)
+                checkBoxApplyCOStartup.Checked = true;
+
+            SetStartup(checkBoxApplyCOStartup.Checked);
+            textBoxResult.Text =
+                (checkBoxApplyFmaxStartup.Checked
+                    ? "已启用启动时应用已保存的 FMax。"
+                    : "已关闭启动时应用 FMax。") +
+                Environment.NewLine +
+                textBoxResult.Text;
         }
 
         private void tableLayoutPanel14_Paint(object sender, PaintEventArgs e)
