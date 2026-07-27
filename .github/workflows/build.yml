@@ -1,0 +1,41 @@
+name: Build .NET Framework release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Restore NuGet packages
+        run: nuget restore ZenStatesDebugTool.sln -NonInteractive
+
+      - name: Build Release
+        run: msbuild ZenStatesDebugTool.sln /m /p:Configuration=Release /p:Platform="Any CPU"
+
+      - name: Package release
+        shell: pwsh
+        run: .\scripts\package-release.ps1 -Version "1.41" -Configuration "Release" -OutputDirectory $PWD
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SMUDebugTool_zh-CN_v1.41
+          path: SMUDebugTool_zh-CN_v1.41.zip
+          if-no-files-found: error

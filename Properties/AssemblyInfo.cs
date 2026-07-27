@@ -5,15 +5,15 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Ryzen SMU Debug Tool")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("Ryzen SMU Debug Tool zh-CN")]
+[assembly: AssemblyDescription("SMUDebugTool zh-CN 开源本地化版本")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("irusanov")]
-[assembly: AssemblyProduct("Ryzen SDT")]
-[assembly: AssemblyCopyright("Copyright © 2022-2026")]
+[assembly: AssemblyProduct("Ryzen SDT zh-CN")]
+[assembly: AssemblyCopyright("原作 Copyright © irusanov 2022-2026；简体中文汉化 © Terry577 2026")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
-[assembly: NeutralResourcesLanguage("en")]
+[assembly: NeutralResourcesLanguage("zh-CN")]
 
 // Setting ComVisible to false makes the types in this assembly not visible
 // to COM components.  If you need to access a type in this assembly from

@@ -40,6 +40,7 @@ namespace ZenStatesDebugTool
             labelArgAddr.Text = $"0x{addrArg:X8}";
 
             dataGridView2.DataSource = list;
+            UiLocalization.Apply(this);
         }
 
         private void AddLine()
@@ -86,13 +87,13 @@ namespace ZenStatesDebugTool
             if (MonitorTimer.Enabled)
             {
                 MonitorTimer.Stop();
-                buttonStartStop.Text = "Start";
+                buttonStartStop.Text = "开始";
             }
             else
             {
                 prevCmdValue = 0;
                 MonitorTimer.Start();
-                buttonStartStop.Text = "Stop";
+                buttonStartStop.Text = "停止";
             }
         }
     }

@@ -86,6 +86,7 @@ namespace ZenStatesDebugTool
             InitializeComponent();
 
             dataGridView1.DataSource = list;
+            UiLocalization.Apply(this);
 
             FillInData(cpu.powerTable.Table);
         }

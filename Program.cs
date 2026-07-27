@@ -21,7 +21,7 @@ namespace ZenStatesDebugTool
 #if DEBUG
                 appString += " (debug)";
 #endif
-                MainForm.Text = appString;
+                MainForm.Text = appString + " zh-CN";
                 Application.Run(MainForm);
             }
             catch (ApplicationException ex)

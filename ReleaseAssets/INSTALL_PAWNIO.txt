@@ -1,0 +1,11 @@
+SMUDebugTool hardware access requires a working I/O driver.
+
+If SMUDebugTool reports that the I/O module cannot be initialized:
+
+1. Make sure the entire ZIP archive has been extracted.
+2. Run SMUDebugTool.exe as administrator.
+3. Install PawnIO from its official website:
+
+   https://pawnio.eu/
+
+Restart SMUDebugTool after the driver installation has completed.

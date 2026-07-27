@@ -9,6 +9,7 @@ namespace ZenStatesDebugTool
         public ResultForm()
         {
             InitializeComponent();
+            UiLocalization.Apply(this);
         }
 
         private void SaveToFile(string filename="")
@@ -31,7 +32,7 @@ namespace ZenStatesDebugTool
                 sw.WriteLine(textBoxFormResult.Text);
             }
 
-            MessageBox.Show($"File saved as {fileName}");
+            MessageBox.Show($"文件已保存为 {fileName}");
         }
 
         private void buttonSaveResult_Click(object sender, EventArgs e)
@@ -43,7 +44,7 @@ namespace ZenStatesDebugTool
         {
             SaveFileDialog saveFileDialog1 = new SaveFileDialog
             {
-                Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*",
+                Filter = "文本文件 (*.txt)|*.txt|所有文件 (*.*)|*.*",
                 FilterIndex = 1,
                 DefaultExt = "txt",
                 RestoreDirectory = true

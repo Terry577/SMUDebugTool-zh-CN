@@ -95,6 +95,7 @@ namespace ZenStatesDebugTool
             list.Clear();
             list = RefreshList();
             dataGridViewPCIRange.DataSource = list;
+            UiLocalization.Apply(this);
         }
 
         private void RefreshTimer_Tick(object sender, EventArgs e)
