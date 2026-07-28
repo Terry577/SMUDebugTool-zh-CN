@@ -6,11 +6,19 @@
 
 这是 [irusanov/SMUDebugTool](https://github.com/irusanov/SMUDebugTool) 的简体中文开源修改版，用于读取和写入 AMD Ryzen 平台的频率、PState、SMU、PCI、CPUID、MSR、PBO 和功耗管理表等底层参数。
 
-当前汉化版本为 **v1.41.1**，基于原作者 **v1.41** 开发。
+当前稳定版本为 **v1.41.2**，基于原作者 **v1.41** 开发。
 
 > [下载最新版本](https://github.com/Terry577/SMUDebugTool-zh-CN/releases/latest)
 
 完整版本变更见 [CHANGELOG.md](CHANGELOG.md)。
+
+## v1.41.2 主要改动
+
+- 目标框架由 .NET Framework 4.5 升级到最新的 .NET Framework 4.8.1。
+- 改用 WinForms 4.8.1 官方 Per-Monitor V2 动态 DPI 支持。
+- 删除手工 `PerformAutoScale()`、DPI 倍率和分隔栏缩放补丁。
+- 删除约 680 行已停用的旧版中文布局代码，继续收敛到单一现代 UI 构建入口。
+- 发布 ZIP 内附微软官方 .NET Framework 4.8.1 离线安装程序及运行入口。
 
 ## v1.41.1 主要改动
 
@@ -28,12 +36,15 @@ CPU、SMU、PCI、MSR、PBO、CPUID、CCD、CCX、PROCHOT、Curve Shaper 等通�
 
 ## 下载与运行
 
-1. 从 [Releases](https://github.com/Terry577/SMUDebugTool-zh-CN/releases) 下载 `SMUDebugTool_zh-CN_v1.41.1.zip`。
+1. 从 [Releases](https://github.com/Terry577/SMUDebugTool-zh-CN/releases) 下载最新 ZIP。
 2. 将 ZIP 完整解压到普通英文路径，不要直接从压缩包预览窗口运行。
-3. 安装 [PawnIO 官方驱动](https://pawnio.eu/)。
-4. 以管理员身份运行 `SMUDebugTool.exe`。
+3. 双击 `RUN_SMUDEBUGTOOL.cmd`。如果系统缺少 .NET Framework 4.8.1，它会调用发布包内附的微软官方离线安装程序。
+4. 右键运行发布包内的 `PawnIO_setup.exe`，安装 PawnIO 官方驱动并重新启动 Windows。
+5. 以管理员身份运行 `SMUDebugTool.exe`。
 
-程序需要 Windows、.NET Framework 4.5 和可用的底层 I/O 驱动。发布包包含原作者 v1.41 提供的 InpOut/WinIo 兼容运行文件及对应许可证；PawnIO 驱动需要从官方网站单独安装。
+程序需要受支持的 Windows、.NET Framework 4.8.1 和可用的底层 I/O 驱动。.NET Framework 不能作为便携式 self-contained 运行时使用，因此发布包内附的是需要安装一次的微软官方 Redistributable。发布包同时包含原作者 v1.41 提供的 InpOut/WinIo 兼容运行文件及对应许可证，以及未经修改、经过 SHA-256 校验的 PawnIO 2.2.0 官方安装程序、GPL-2.0 许可证和对应源码。
+
+运行时安装说明见 [`ReleaseAssets/INSTALL_DOTNET.txt`](ReleaseAssets/INSTALL_DOTNET.txt)。
 
 ## PBO 配置与开机应用
 
@@ -72,7 +83,7 @@ profiles/co_profile.txt
 
 ### 在不同缩放比例的显示器间移动时字体异常
 
-v1.41.1 已启用 Per-Monitor V2 DPI 感知。请确保 Windows 显示设置中的缩放比例已正确应用；如果系统刚修改过缩放设置，退出并重新启动程序。
+v1.41.2 已改用 .NET Framework 4.8.1 官方 Per-Monitor V2 动态 DPI 支持，并移除了旧版手工缩放。请确保 Windows 显示设置中的缩放比例已正确应用；如果系统刚修改过缩放设置，退出并重新启动程序。
 
 ### 启动应用没有生效
 
@@ -86,8 +97,8 @@ v1.41.1 已启用 Per-Monitor V2 DPI 感知。请确保 Windows 显示设置中�
 
 ### Visual Studio
 
-1. 在 Windows 上安装 Visual Studio，并启用“.NET 桌面开发”工作负载。
-2. 安装 .NET Framework 4.5 开发组件。
+1. 在 Windows 上安装 Visual Studio 2022，并启用“.NET 桌面开发”工作负载。
+2. 安装 .NET Framework 4.8.1 Developer Pack。
 3. 打开 `ZenStatesDebugTool.sln`。
 4. 还原 NuGet 软件包。
 5. 选择 `Release | Any CPU` 并生成解决方案。
@@ -102,19 +113,19 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -Configuration Release
 ```
 
-本地脚本需要已安装的 .NET SDK，并使用 NuGet 恢复的 .NET Framework 4.5 引用程序集。输出位于 `bin\Release`。
+本地脚本需要已安装的 .NET SDK，并使用 NuGet 恢复的 .NET Framework 4.8.1 引用程序集。输出位于 `bin\Release`。
 
 ### 生成发布包
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\scripts\package-release.ps1 `
-  -Version 1.41.1 `
+  -Version 1.41.2 `
   -Configuration Release `
   -OutputDirectory .
 ```
 
-打包脚本会下载原作者 v1.41 发布包、校验其 SHA-256，并组合程序、依赖库、调试符号、许可证、PawnIO 说明和 `profiles` 目录。
+打包脚本会下载原作者 v1.41 发布包、微软官方 .NET Framework 4.8.1 离线安装程序、PawnIO 2.2.0 官方安装程序及其对应源码，分别校验 SHA-256，再组合程序、依赖库、调试符号、许可证、安装说明和 `profiles` 目录。内附运行时、驱动安装程序和对应源码后，ZIP 体积约为 84 MB。
 
 GitHub Actions 工作流也会在推送到 `master` 后执行 .NET Framework Release 构建并上传 ZIP 构建产物。
 
@@ -125,7 +136,7 @@ GitHub Actions 工作流也会在推送到 `master` 后执行 .NET Framework Rel
 | `SettingsForm.cs` | 主功能、PBO 配置、计划任务与硬件操作逻辑 |
 | `ModernInterface.cs` | 现代界面结构与功能卡片 |
 | `ModernUi.cs` | AntdUI 外观、导航和控件升级 |
-| `ChineseUiLayout.cs` | 中文界面布局辅助 |
+| `UiRuntimeStyle.cs` | 统一字体、窗口策略和非手工 DPI 样式 |
 | `UiLocalization.cs` | 中文文本本地化 |
 | `Properties/AssemblyInfo.cs` | 产品信息与版本号 |
 | `CHANGELOG.md` | 汉化版本更新记录 |

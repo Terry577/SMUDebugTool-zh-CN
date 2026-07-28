@@ -1,33 +1,29 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
 using System.Windows.Forms;
 using AntButton = AntdUI.Button;
 using AntCheckbox = AntdUI.Checkbox;
-using AntPanel = AntdUI.Panel;
+using AntInput = AntdUI.Input;
+using AntInputNumber = AntdUI.InputNumber;
 using AntRadio = AntdUI.Radio;
+using AntSelect = AntdUI.Select;
 using WinButton = System.Windows.Forms.Button;
 using WinCheckbox = System.Windows.Forms.CheckBox;
+using WinComboBox = System.Windows.Forms.ComboBox;
+using WinNumericUpDown = System.Windows.Forms.NumericUpDown;
 using WinRadio = System.Windows.Forms.RadioButton;
+using WinTextBox = System.Windows.Forms.TextBox;
 
 namespace ZenStatesDebugTool
 {
     /// <summary>
-    /// Adds the modern AntdUI surface without changing the upstream event handlers.
-    /// The original WinForms buttons remain as lightweight event proxies, which
-    /// keeps future upstream merges and hardware logic changes isolated from UI work.
+    /// Converts functional WinForms controls into the single AntdUI visual
+    /// surface while keeping hardware event handlers isolated from presentation.
     /// </summary>
     internal static class ModernUi
     {
-        internal static void WrapCards(
-            IEnumerable<Control> cards,
-            Color cardColor,
-            Color borderColor)
-        {
-            foreach (Control card in cards.Where(item => item != null).ToArray())
-                WrapCard(card, cardColor, borderColor);
-        }
+        private const int ControlCornerRadius = 8;
 
         internal static void UpgradeButtons(
             Control root,
@@ -67,6 +63,353 @@ namespace ZenStatesDebugTool
                 ReplaceCheckbox(checkbox, toolTip, accentColor);
             foreach (WinRadio radio in radios)
                 ReplaceRadio(radio, toolTip, accentColor);
+        }
+
+        internal static void UpgradeDataControls(
+            Control root,
+            ISet<WinTextBox> excludedTextBoxes,
+            ToolTip toolTip,
+            Color accentColor,
+            Color borderColor)
+        {
+            List<WinTextBox> textBoxes = new List<WinTextBox>();
+            List<WinNumericUpDown> numericInputs =
+                new List<WinNumericUpDown>();
+            List<WinComboBox> comboBoxes = new List<WinComboBox>();
+            CollectDataControls(
+                root,
+                textBoxes,
+                numericInputs,
+                comboBoxes);
+
+            foreach (WinTextBox textBox in textBoxes)
+            {
+                if (excludedTextBoxes == null ||
+                    !excludedTextBoxes.Contains(textBox))
+                {
+                    ReplaceTextBox(
+                        textBox,
+                        toolTip,
+                        accentColor,
+                        borderColor);
+                }
+            }
+            foreach (WinNumericUpDown numericInput in numericInputs)
+            {
+                ReplaceNumericInput(
+                    numericInput,
+                    toolTip,
+                    accentColor,
+                    borderColor);
+            }
+            foreach (WinComboBox comboBox in comboBoxes)
+            {
+                ReplaceComboBox(
+                    comboBox,
+                    toolTip,
+                    accentColor,
+                    borderColor);
+            }
+        }
+
+        private static void CollectDataControls(
+            Control root,
+            ICollection<WinTextBox> textBoxes,
+            ICollection<WinNumericUpDown> numericInputs,
+            ICollection<WinComboBox> comboBoxes)
+        {
+            foreach (Control control in root.Controls)
+            {
+                WinNumericUpDown numeric = control as WinNumericUpDown;
+                if (numeric != null)
+                {
+                    numericInputs.Add(numeric);
+                    continue;
+                }
+
+                WinComboBox combo = control as WinComboBox;
+                if (combo != null)
+                {
+                    comboBoxes.Add(combo);
+                    continue;
+                }
+
+                WinTextBox textBox = control as WinTextBox;
+                if (textBox != null)
+                {
+                    textBoxes.Add(textBox);
+                    continue;
+                }
+
+                CollectDataControls(
+                    control,
+                    textBoxes,
+                    numericInputs,
+                    comboBoxes);
+            }
+        }
+
+        private static void ReplaceTextBox(
+            WinTextBox original,
+            ToolTip toolTip,
+            Color accentColor,
+            Color borderColor)
+        {
+            Control parent = original.Parent;
+            if (parent == null)
+                return;
+
+            AntInput modern = new AntInput
+            {
+                Anchor = original.Anchor,
+                AutoSize = false,
+                BackColor = Color.White,
+                BorderActive = accentColor,
+                BorderColor = borderColor,
+                BorderHover = accentColor,
+                BorderWidth = 1F,
+                CausesValidation = original.CausesValidation,
+                Dock = original.Dock,
+                Enabled = original.Enabled,
+                Font = original.Font,
+                ForeColor = original.ForeColor,
+                Location = original.Location,
+                Margin = original.Margin,
+                MaximumSize = original.MaximumSize,
+                MaxLength = original.MaxLength,
+                MinimumSize = original.MinimumSize,
+                Multiline = original.Multiline,
+                Name = original.Name + "Modern",
+                Padding = original.Padding,
+                Radius = ControlCornerRadius,
+                ReadOnly = original.ReadOnly,
+                Size = original.Size,
+                TabIndex = original.TabIndex,
+                TabStop = original.TabStop,
+                Tag = original.Tag,
+                Text = original.Text,
+                TextAlign = original.TextAlign,
+                UseSystemPasswordChar =
+                    original.UseSystemPasswordChar,
+                Visible = true,
+                WaveSize = 0
+            };
+
+            bool synchronizing = false;
+            modern.TextChanged += delegate
+            {
+                if (synchronizing)
+                    return;
+                synchronizing = true;
+                original.Text = modern.Text;
+                synchronizing = false;
+            };
+            original.TextChanged += delegate
+            {
+                if (synchronizing)
+                    return;
+                synchronizing = true;
+                modern.Text = original.Text;
+                synchronizing = false;
+            };
+            original.EnabledChanged += delegate
+            {
+                modern.Enabled = original.Enabled;
+            };
+            modern.KeyDown += delegate(object sender, KeyEventArgs e)
+            {
+                original.Text = modern.Text;
+                RaiseKeyDown(original, e);
+            };
+            modern.KeyPress += delegate(object sender, KeyPressEventArgs e)
+            {
+                RaiseKeyPress(original, e);
+            };
+            modern.Validated += delegate
+            {
+                RaiseValidated(original);
+            };
+
+            CopyToolTip(original, modern, toolTip);
+            ReplaceControl(parent, original, modern);
+        }
+
+        private static void ReplaceNumericInput(
+            WinNumericUpDown original,
+            ToolTip toolTip,
+            Color accentColor,
+            Color borderColor)
+        {
+            Control parent = original.Parent;
+            if (parent == null)
+                return;
+
+            bool isCurveShaperValue =
+                !string.IsNullOrEmpty(original.Name) &&
+                original.Name.StartsWith(
+                    "cs_",
+                    StringComparison.OrdinalIgnoreCase);
+
+            AntInputNumber modern = new AntInputNumber
+            {
+                AlwaysShowControl = !isCurveShaperValue,
+                Anchor = original.Anchor,
+                AutoSize = false,
+                BackColor = Color.White,
+                BorderActive = accentColor,
+                BorderColor = borderColor,
+                BorderHover = accentColor,
+                BorderWidth = 1F,
+                DecimalPlaces = original.DecimalPlaces,
+                Dock = original.Dock,
+                Enabled = original.Enabled,
+                Font = original.Font,
+                ForeColor = original.ForeColor,
+                Hexadecimal = original.Hexadecimal,
+                Increment = original.Increment,
+                Location = original.Location,
+                Margin = original.Margin,
+                Maximum = original.Maximum,
+                MaximumSize = original.MaximumSize,
+                Minimum = original.Minimum,
+                MinimumSize = original.MinimumSize,
+                Name = original.Name + "Modern",
+                Radius = ControlCornerRadius,
+                ReadOnly = original.ReadOnly,
+                ShowControl = !isCurveShaperValue,
+                Size = original.Size,
+                TabIndex = original.TabIndex,
+                TabStop = original.TabStop,
+                Tag = original.Tag,
+                TextAlign = original.TextAlign,
+                ThousandsSeparator = original.ThousandsSeparator,
+                Value = original.Value,
+                Visible = true,
+                WaveSize = 0
+            };
+
+            bool synchronizing = false;
+            modern.ValueChanged += delegate(
+                object sender,
+                AntdUI.DecimalEventArgs e)
+            {
+                if (synchronizing)
+                    return;
+                synchronizing = true;
+                original.Value = e.Value;
+                synchronizing = false;
+            };
+            original.ValueChanged += delegate
+            {
+                if (synchronizing)
+                    return;
+                synchronizing = true;
+                modern.Value = original.Value;
+                synchronizing = false;
+            };
+            original.EnabledChanged += delegate
+            {
+                modern.Enabled = original.Enabled;
+            };
+
+            CopyToolTip(original, modern, toolTip);
+            ReplaceControl(parent, original, modern);
+        }
+
+        private static void ReplaceComboBox(
+            WinComboBox original,
+            ToolTip toolTip,
+            Color accentColor,
+            Color borderColor)
+        {
+            Control parent = original.Parent;
+            if (parent == null)
+                return;
+
+            AntSelect modern = new AntSelect
+            {
+                Anchor = original.Anchor,
+                AutoSize = false,
+                BackColor = Color.White,
+                BorderActive = accentColor,
+                BorderColor = borderColor,
+                BorderHover = accentColor,
+                BorderWidth = 1F,
+                ClickSwitchDropdown = true,
+                Dock = original.Dock,
+                DropDownArrow = true,
+                DropDownRadius = ControlCornerRadius,
+                Enabled = original.Enabled,
+                Font = original.Font,
+                ForeColor = original.ForeColor,
+                List = true,
+                ListAutoWidth = false,
+                Location = original.Location,
+                Margin = original.Margin,
+                MaximumSize = original.MaximumSize,
+                MinimumSize = original.MinimumSize,
+                Name = original.Name + "Modern",
+                Radius = ControlCornerRadius,
+                // AntdUI Select is list-only by design. Its ReadOnly flag
+                // disables opening the drop-down entirely, unlike the
+                // WinForms DropDownList style.
+                ReadOnly = false,
+                Size = original.Size,
+                TabIndex = original.TabIndex,
+                TabStop = original.TabStop,
+                Tag = original.Tag,
+                TextAlign = HorizontalAlignment.Left,
+                Visible = true,
+                WaveSize = 0
+            };
+
+            bool synchronizing = false;
+            Action refreshItems = delegate
+            {
+                synchronizing = true;
+                modern.Items.Clear();
+                foreach (object item in original.Items)
+                    modern.Items.Add(item);
+                modern.SelectedIndex =
+                    original.SelectedIndex >= 0 &&
+                    original.SelectedIndex < modern.Items.Count
+                        ? original.SelectedIndex
+                        : -1;
+                synchronizing = false;
+            };
+            refreshItems();
+
+            modern.SelectedIndexChanged += delegate(
+                object sender,
+                AntdUI.IntEventArgs e)
+            {
+                if (synchronizing)
+                    return;
+                synchronizing = true;
+                original.SelectedIndex = e.Value;
+                synchronizing = false;
+            };
+            original.SelectedIndexChanged += delegate
+            {
+                if (synchronizing)
+                    return;
+                refreshItems();
+            };
+            modern.MouseDown += delegate
+            {
+                refreshItems();
+            };
+            original.EnabledChanged += delegate
+            {
+                modern.Enabled = original.Enabled;
+            };
+            modern.KeyDown += delegate(object sender, KeyEventArgs e)
+            {
+                RaiseKeyDown(original, e);
+            };
+
+            CopyToolTip(original, modern, toolTip);
+            ReplaceControl(parent, original, modern);
         }
 
         private static void CollectSelectionControls(
@@ -258,6 +601,40 @@ namespace ZenStatesDebugTool
                 .Invoke(original, new object[] { EventArgs.Empty });
         }
 
+        private static void RaiseKeyDown(
+            Control original,
+            KeyEventArgs eventArgs)
+        {
+            typeof(Control)
+                .GetMethod(
+                    "OnKeyDown",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic)
+                .Invoke(original, new object[] { eventArgs });
+        }
+
+        private static void RaiseKeyPress(
+            Control original,
+            KeyPressEventArgs eventArgs)
+        {
+            typeof(Control)
+                .GetMethod(
+                    "OnKeyPress",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic)
+                .Invoke(original, new object[] { eventArgs });
+        }
+
+        private static void RaiseValidated(Control original)
+        {
+            typeof(Control)
+                .GetMethod(
+                    "OnValidated",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic)
+                .Invoke(original, new object[] { EventArgs.Empty });
+        }
+
         private static void CollectButtons(Control root, ICollection<WinButton> buttons)
         {
             foreach (Control control in root.Controls)
@@ -301,7 +678,7 @@ namespace ZenStatesDebugTool
                 MaximumSize = original.MaximumSize,
                 Name = original.Name + "Modern",
                 Padding = original.Padding,
-                Radius = 7,
+                Radius = ControlCornerRadius,
                 Size = original.Size,
                 TabIndex = original.TabIndex,
                 TabStop = original.TabStop,
@@ -347,48 +724,6 @@ namespace ZenStatesDebugTool
             };
 
             ReplaceControl(parent, original, modern);
-        }
-
-        private static void WrapCard(
-            Control card,
-            Color cardColor,
-            Color borderColor)
-        {
-            Control parent = card.Parent;
-            if (parent == null || parent is AntPanel)
-                return;
-
-            AntPanel wrapper = new AntPanel
-            {
-                Anchor = card.Anchor,
-                Back = cardColor,
-                BorderColor = borderColor,
-                BorderWidth = 1F,
-                Dock = card.Dock,
-                Location = card.Location,
-                Margin = card.Margin,
-                MinimumSize = card.MinimumSize,
-                MaximumSize = card.MaximumSize,
-                Name = card.Name + "Card",
-                Padding = new Padding(1),
-                Radius = 9,
-                Shadow = 2,
-                ShadowColor = Color.FromArgb(62, 81, 105),
-                ShadowOffsetY = 1,
-                ShadowOpacity = 0.08F,
-                Size = card.Size,
-                TabIndex = card.TabIndex
-            };
-
-            ReplaceControl(parent, card, wrapper);
-            card.Dock = DockStyle.Fill;
-            card.Margin = new Padding(0);
-
-            TableLayoutPanel table = card as TableLayoutPanel;
-            if (table != null)
-                table.BorderStyle = BorderStyle.None;
-
-            wrapper.Controls.Add(card);
         }
 
         private static void ReplaceControl(

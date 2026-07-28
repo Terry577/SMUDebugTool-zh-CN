@@ -85,7 +85,7 @@ namespace ZenStatesDebugTool
             TranslateControl(root);
             Form form = root as Form;
             if (form != null)
-                ChineseUiLayout.Apply(form);
+                UiRuntimeStyle.Apply(form);
         }
 
         private static void TranslateControl(Control control)

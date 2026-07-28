@@ -1,0 +1,33 @@
+SMUDebugTool zh-CN - .NET Framework 4.8.1
+=========================================
+
+SMUDebugTool zh-CN v1.41.2 targets Microsoft .NET Framework 4.8.1.
+
+Recommended startup:
+
+1. Extract the complete ZIP archive.
+2. Double-click RUN_SMUDEBUGTOOL.cmd.
+3. If .NET Framework 4.8.1 is missing, the included official Microsoft
+   offline installer will run with administrator privileges.
+4. Restart Windows if the installer requests it.
+5. Run RUN_SMUDEBUGTOOL.cmd again.
+
+Included Microsoft installer:
+
+  NDP481-x86-x64-AllOS-ENU.exe
+
+The installer is downloaded from Microsoft's official distribution server
+when the release package is built, and its SHA-256 is verified by the
+packaging script.
+
+Official download page:
+
+https://dotnet.microsoft.com/download/dotnet-framework/net481
+
+Important:
+
+- .NET Framework cannot be deployed as a portable self-contained runtime.
+- The included redistributable must be installed once on each computer.
+- .NET Framework 4.8.1 supports current Windows 10, Windows 11 and Windows
+  Server versions listed by Microsoft.
+- The runtime installer and .NET Framework remain licensed by Microsoft.

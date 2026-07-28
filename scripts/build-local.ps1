@@ -8,10 +8,10 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $projectFile = Join-Path $repoRoot "ZenStatesDebugTool.csproj"
 $outputDirectory = Join-Path $repoRoot ("bin\" + $Configuration)
 $intermediateDirectory = Join-Path $repoRoot ("obj\Local" + $Configuration)
-$referenceRoot = Join-Path $repoRoot "packages\Microsoft.NETFramework.ReferenceAssemblies.net45.1.0.3\build\.NETFramework\v4.5"
+$referenceRoot = Join-Path $repoRoot "packages\Microsoft.NETFramework.ReferenceAssemblies.net481.1.0.3\build\.NETFramework\v4.8.1"
 
 if (!(Test-Path $referenceRoot)) {
-    throw "Missing .NET Framework 4.5 reference assemblies. Run NuGet restore first."
+    throw "Missing .NET Framework 4.8.1 reference assemblies. Run NuGet restore first."
 }
 
 $sdkLine = (& dotnet --list-sdks | Select-Object -Last 1)

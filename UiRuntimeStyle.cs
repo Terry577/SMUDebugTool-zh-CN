@@ -1,77 +1,67 @@
-using System;
 using System.Drawing;
 using System.Windows.Forms;
 
 namespace ZenStatesDebugTool
 {
     /// <summary>
-    /// Applies a consistent, DPI-aware layout policy after Chinese text is loaded.
-    /// The upstream Designer remains untouched so future upstream merges stay simple.
+    /// Applies shared fonts and window policies without performing manual DPI
+    /// scaling. Per-monitor scaling is owned exclusively by WinForms 4.8.1.
     /// </summary>
-    internal static class ChineseUiLayout
+    internal static class UiRuntimeStyle
     {
-        private static readonly Font InterfaceFont =
-            new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
+        internal static readonly Font InterfaceFont =
+            new Font(
+                "Microsoft YaHei UI",
+                9F,
+                FontStyle.Regular,
+                GraphicsUnit.Point);
+
+        internal static void ConfigureMainWindow(SettingsForm form)
+        {
+            form.SuspendLayout();
+            form.Font = InterfaceFont;
+            form.StartPosition = FormStartPosition.CenterScreen;
+            form.FormBorderStyle = FormBorderStyle.FixedSingle;
+            form.MaximizeBox = false;
+            form.MinimizeBox = true;
+            form.SizeGripStyle = SizeGripStyle.Hide;
+            form.MinimumSize = Size.Empty;
+            form.MaximumSize = Size.Empty;
+            form.ClientSize = new Size(1000, 620);
+            form.ResumeLayout(false);
+        }
 
         internal static void Apply(Form form)
         {
             form.SuspendLayout();
-            form.AutoScaleDimensions = new SizeF(96F, 96F);
-            form.AutoScaleMode = AutoScaleMode.Dpi;
             form.Font = InterfaceFont;
             form.StartPosition = FormStartPosition.CenterScreen;
-
             StyleControlTree(form);
-            ConfigureWindow(form);
+
+            if (!(form is SettingsForm))
+                ConfigureAuxiliaryWindow(form);
 
             form.ResumeLayout(true);
-            form.PerformAutoScale();
-
-            SettingsForm settingsForm = form as SettingsForm;
-            if (settingsForm != null)
-            {
-                float scaleFactor =
-                    settingsForm.CurrentAutoScaleDimensions.Width / 96F;
-                settingsForm.FinalizeModernDpiLayout(scaleFactor);
-            }
         }
 
-        private static void ConfigureWindow(Form form)
+        private static void ConfigureAuxiliaryWindow(Form form)
         {
-            if (form is SettingsForm)
-            {
-                form.FormBorderStyle = FormBorderStyle.FixedSingle;
-                form.MaximizeBox = false;
-                form.MinimizeBox = true;
-                form.SizeGripStyle = SizeGripStyle.Hide;
-                form.MinimumSize = Size.Empty;
-                form.MaximumSize = Size.Empty;
-                form.ClientSize = new Size(1180, 700);
-                return;
-            }
-
             if (form is SMUMonitor)
             {
                 form.MinimumSize = new Size(480, 460);
                 form.ClientSize = new Size(560, 560);
-                return;
             }
-
-            if (form is PowerTableMonitor)
+            else if (form is PowerTableMonitor)
             {
                 form.MinimumSize = new Size(430, 460);
                 form.ClientSize = new Size(520, 560);
-                return;
             }
-
-            if (form is PCIRangeMonitor)
+            else if (form is PCIRangeMonitor)
             {
                 form.MinimumSize = new Size(680, 440);
                 form.ClientSize = new Size(880, 560);
-                return;
             }
-
-            if (form is ResultForm)
+            else if (form is ResultForm)
             {
                 form.MinimumSize = new Size(520, 340);
                 form.ClientSize = new Size(680, 440);
@@ -96,9 +86,9 @@ namespace ZenStatesDebugTool
                 if (label != null)
                     label.AutoEllipsis = true;
 
-                TabControl tabControl = control as TabControl;
                 bool isModernMainWindow =
                     control.FindForm() is SettingsForm;
+                TabControl tabControl = control as TabControl;
                 if (tabControl != null && !isModernMainWindow)
                 {
                     tabControl.Multiline = true;

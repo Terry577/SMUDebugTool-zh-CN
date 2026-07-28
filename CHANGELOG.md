@@ -2,6 +2,30 @@
 
 本文件记录 SMUDebugTool zh-CN 相对于原项目的重要修改。上游自身的完整历史请查看 [`irusanov/SMUDebugTool`](https://github.com/irusanov/SMUDebugTool)。
 
+## [1.41.2] - 2026-07-28
+
+### 变更
+
+- 将目标框架从 .NET Framework 4.5 升级到 .NET Framework 4.8.1。
+- 使用 `app.config` 启用 WinForms 官方 Per-Monitor V2 动态 DPI 支持。
+- 从 Manifest 移除会覆盖 WinForms 配置的旧 DPI 声明。
+- 删除手工 `PerformAutoScale()`、DPI 倍率和分隔栏缩放补丁。
+- 删除约 680 行未调用的旧版中文布局代码。
+- 将共享导航和按钮升级逻辑迁移到新版 UI 文件。
+- 将 `ChineseUiLayout` 替换为不执行手工缩放的 `UiRuntimeStyle`。
+- 发布 ZIP 内附经过 SHA-256 校验的微软官方 .NET Framework 4.8.1 离线安装程序。
+- 发布 ZIP 内附未经修改、经过 SHA-256 校验的 PawnIO 2.2.0 官方安装程序、GPL-2.0 许可证及对应源码。
+- 增加 `RUN_SMUDEBUGTOOL.cmd`，用于检测运行时、调用安装程序并启动软件。
+- 统一主要界面的圆角卡片、输入框、按钮与间距。
+- 压缩 PBO、Curve Shaper、CPU、PCI、MSR 等页面布局，减少无效留白。
+- 为 Curve Optimizer、FMax 与 Curve Shaper 的应用操作增加明确的成功或失败运行日志。
+
+### 修复
+
+- 修复现代化下拉框无法展开的问题。
+- 修复数值输入框残留原生微调按钮和异常绘制的问题。
+- 修复边缘、阴影、滚动条和高 DPI 下的若干布局异常。
+
 ## [1.41.1] - 2026-07-28
 
 基于原作者 v1.41。
@@ -39,5 +63,6 @@
 - 汉化主要界面、状态提示、确认对话框、错误信息和数据表文本。
 - 增加修改版署名、GPL-3.0 说明和第三方运行文件许可。
 
+[1.41.2]: https://github.com/Terry577/SMUDebugTool-zh-CN/compare/v1.41.1...master
 [1.41.1]: https://github.com/Terry577/SMUDebugTool-zh-CN/releases/tag/v1.41.1
 [1.41]: https://github.com/Terry577/SMUDebugTool-zh-CN/releases/tag/v1.41

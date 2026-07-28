@@ -37,7 +37,7 @@ assignees: ''
 
 ## 环境信息
 
-- SMUDebugTool zh-CN 版本：例如 1.41.1
+- SMUDebugTool zh-CN 版本：例如 1.41.2
 - Windows 版本与系统内部版本：
 - CPU 型号：
 - 主板型号：

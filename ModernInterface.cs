@@ -1,15 +1,25 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Windows.Forms;
 using AntButton = AntdUI.Button;
 using AntPanel = AntdUI.Panel;
+using WinButton = System.Windows.Forms.Button;
 
 namespace ZenStatesDebugTool
 {
     public partial class SettingsForm
     {
+        private static readonly Color ThemeAccentColor =
+            Color.FromArgb(22, 119, 255);
+        private static readonly Color ThemeAccentHoverColor =
+            Color.FromArgb(64, 150, 255);
+        private static readonly Color ThemeAccentActiveColor =
+            Color.FromArgb(9, 88, 217);
+        private static readonly Color ThemeBorderColor =
+            Color.FromArgb(214, 220, 229);
         private static readonly Color ModernPageColor =
             Color.FromArgb(244, 247, 251);
         private static readonly Color ModernCardColor = Color.White;
@@ -17,6 +27,16 @@ namespace ZenStatesDebugTool
             Color.FromArgb(25, 35, 51);
         private static readonly Color ModernMutedColor =
             Color.FromArgb(112, 124, 143);
+        private const int ControlCornerRadius = 8;
+        private const int NavigationCornerRadius = 10;
+        private const int CardCornerRadius = 12;
+        private const float StandardInputWidth = 220F;
+        private readonly Dictionary<TabPage, AntButton> fixedTabButtons =
+            new Dictionary<TabPage, AntButton>();
+        private readonly Dictionary<TabPage, Panel> modernPageSurfaces =
+            new Dictionary<TabPage, Panel>();
+        private Panel modernPageHost;
+        private TabPage modernSelectedPage;
 
         private void BuildModernInterface()
         {
@@ -49,9 +69,9 @@ namespace ZenStatesDebugTool
                 RowCount = 3
             };
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 62F));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 58F));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 26F));
 
             Control navigation = BuildModernNavigation();
             statusStrip1.BackColor = Color.FromArgb(238, 243, 249);
@@ -70,18 +90,21 @@ namespace ZenStatesDebugTool
 
         private void ConfigureModernTabControl()
         {
-            tabControl1.Appearance = TabAppearance.FlatButtons;
-            tabControl1.ItemSize = new Size(0, 1);
-            tabControl1.Multiline = false;
-            tabControl1.Padding = new Point(0, 0);
-            tabControl1.SizeMode = TabSizeMode.Fixed;
-            tabControl1.Dock = DockStyle.Fill;
-            tabControl1.Margin = new Padding(0);
+            tabControl1.Visible = false;
+
+            modernPageHost = new Panel
+            {
+                BackColor = ModernPageColor,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0),
+                Padding = new Padding(0)
+            };
 
             foreach (TabPage page in tabControl1.TabPages)
             {
                 page.AutoScroll = false;
                 page.BackColor = ModernPageColor;
+                page.Margin = new Padding(0);
                 page.Padding = new Padding(0);
                 page.UseVisualStyleBackColor = false;
             }
@@ -96,9 +119,9 @@ namespace ZenStatesDebugTool
                 BorderColor = Color.FromArgb(225, 231, 239),
                 BorderWidth = 0F,
                 Dock = DockStyle.Fill,
-                Margin = new Padding(0),
-                Padding = new Padding(12, 9, 12, 8),
-                Radius = 0,
+                Margin = new Padding(8, 6, 8, 0),
+                Padding = new Padding(8, 3, 8, 3),
+                Radius = NavigationCornerRadius,
                 Shadow = 2,
                 ShadowColor = Color.FromArgb(53, 72, 97),
                 ShadowOffsetY = 1,
@@ -146,8 +169,8 @@ namespace ZenStatesDebugTool
             {
                 Dock = DockStyle.Fill,
                 Font = new Font("Microsoft YaHei UI", 9F),
-                Margin = new Padding(4, 2, 4, 2),
-                Radius = 9,
+                Margin = new Padding(3, 2, 3, 2),
+                Radius = ControlCornerRadius,
                 TabStop = false,
                 Tag = page,
                 Text = text,
@@ -156,6 +179,115 @@ namespace ZenStatesDebugTool
             button.Click += FixedTabButton_Click;
             navigation.Controls.Add(button, column, 0);
             fixedTabButtons[page] = button;
+        }
+
+        private void FixedTabButton_Click(object sender, EventArgs e)
+        {
+            AntButton button = sender as AntButton;
+            TabPage page = button == null ? null : button.Tag as TabPage;
+            if (page != null)
+                SelectModernPage(page);
+        }
+
+        private void SelectModernPage(TabPage page)
+        {
+            if (page == null || modernPageHost == null)
+                return;
+
+            Panel previousSurface;
+            if (modernSelectedPage != null &&
+                modernPageSurfaces.TryGetValue(
+                    modernSelectedPage,
+                    out previousSurface))
+            {
+                previousSurface.Visible = false;
+            }
+
+            modernSelectedPage = page;
+            Panel selectedSurface;
+            if (modernPageSurfaces.TryGetValue(
+                page,
+                out selectedSurface))
+            {
+                selectedSurface.Visible = true;
+                selectedSurface.BringToFront();
+            }
+
+            splitContainer1.Panel2Collapsed = page == tabPageInfo;
+            UpdateFixedTabButtons();
+        }
+
+        private void UpdateFixedTabButtons()
+        {
+            foreach (KeyValuePair<TabPage, AntButton> pair in fixedTabButtons)
+            {
+                bool selected = pair.Key == modernSelectedPage;
+                pair.Value.Type = selected
+                    ? AntdUI.TTypeMini.Primary
+                    : AntdUI.TTypeMini.Default;
+                pair.Value.BackColor = selected
+                    ? ThemeAccentColor
+                    : Color.White;
+                pair.Value.BackHover = selected
+                    ? ThemeAccentHoverColor
+                    : Color.FromArgb(237, 244, 255);
+                pair.Value.BackActive = selected
+                    ? ThemeAccentActiveColor
+                    : Color.FromArgb(225, 236, 252);
+                pair.Value.ForeColor = selected
+                    ? Color.White
+                    : Color.FromArgb(38, 48, 64);
+                pair.Value.ForeHover = selected
+                    ? Color.White
+                    : ThemeAccentColor;
+                pair.Value.ForeActive = selected
+                    ? Color.White
+                    : ThemeAccentActiveColor;
+                pair.Value.DefaultBack = Color.White;
+                pair.Value.DefaultBorderColor = selected
+                    ? ThemeAccentColor
+                    : ThemeBorderColor;
+                pair.Value.BorderWidth = 1F;
+            }
+        }
+
+        private void ApplyModernButtons()
+        {
+            WinButton[] primaryButtons =
+            {
+                buttonApply,
+                buttonApplyAC,
+                buttonApplySC,
+                buttonApplyPROCHOT,
+                buttonApplyCoreMap,
+                buttonPciWrite,
+                buttonMsrWrite,
+                buttonApplyCO,
+                buttonApplyFMax,
+                buttonApplyCS,
+                buttonWmiCmdSend,
+                buttonBCLKApply,
+                btnPstateWrite,
+                button5
+            };
+            ModernUi.UpgradeButtons(
+                this,
+                new HashSet<WinButton>(primaryButtons),
+                toolTip1,
+                ThemeAccentColor,
+                ThemeAccentHoverColor,
+                ThemeAccentActiveColor,
+                ThemeBorderColor);
+            ModernUi.UpgradeSelectionControls(
+                this,
+                toolTip1,
+                ThemeAccentColor);
+            ModernUi.UpgradeDataControls(
+                this,
+                new HashSet<TextBox> { textBoxResult },
+                toolTip1,
+                ThemeAccentColor,
+                ThemeBorderColor);
         }
 
         private void ConfigureModernSplitArea()
@@ -167,25 +299,48 @@ namespace ZenStatesDebugTool
             splitContainer1.IsSplitterFixed = true;
             splitContainer1.Margin = new Padding(0);
             splitContainer1.Panel1.BackColor = ModernPageColor;
-            splitContainer1.Panel1.Padding = new Padding(18, 14, 8, 14);
-            splitContainer1.Panel1MinSize = 820;
+            splitContainer1.Panel1.Padding = new Padding(14, 12, 6, 12);
+            splitContainer1.Panel1MinSize = 690;
             splitContainer1.Panel2.BackColor = ModernPageColor;
-            splitContainer1.Panel2.Padding = new Padding(8, 14, 18, 14);
-            splitContainer1.Panel2MinSize = 300;
+            splitContainer1.Panel2.Padding = new Padding(6, 12, 14, 12);
+            splitContainer1.Panel2MinSize = 250;
             splitContainer1.SplitterWidth = 8;
-            splitContainer1.SplitterDistance = 842;
+            splitContainer1.SplitterDistance = 718;
 
             splitContainer1.Panel1.Controls.Clear();
-            splitContainer1.Panel1.Controls.Add(tabControl1);
+            BuildModernPageSurfaces();
+            splitContainer1.Panel1.Controls.Add(modernPageHost);
             splitContainer1.Panel2.Controls.Clear();
             splitContainer1.Panel2.Controls.Add(BuildModernOutputCard());
+            SelectModernPage(tabPageCPU);
         }
 
-        internal void FinalizeModernDpiLayout(float scaleFactor)
+        private void BuildModernPageSurfaces()
         {
-            int splitterDistance =
-                (int)Math.Round(842F * Math.Max(1F, scaleFactor));
-            splitContainer1.SplitterDistance = splitterDistance;
+            modernPageHost.Controls.Clear();
+            modernPageSurfaces.Clear();
+
+            foreach (TabPage page in tabControl1.TabPages)
+            {
+                Panel surface = new Panel
+                {
+                    BackColor = ModernPageColor,
+                    Dock = DockStyle.Fill,
+                    Margin = new Padding(0),
+                    Padding = new Padding(0),
+                    Visible = false
+                };
+
+                while (page.Controls.Count > 0)
+                {
+                    Control content = page.Controls[0];
+                    page.Controls.RemoveAt(0);
+                    surface.Controls.Add(content);
+                }
+
+                modernPageHost.Controls.Add(surface);
+                modernPageSurfaces[page] = surface;
+            }
         }
 
         private Control BuildModernOutputCard()
@@ -204,7 +359,7 @@ namespace ZenStatesDebugTool
             sidebar.RowStyles.Add(
                 new RowStyle(SizeType.Percent, 55F));
             sidebar.RowStyles.Add(
-                new RowStyle(SizeType.Absolute, 12F));
+                new RowStyle(SizeType.Absolute, 10F));
             sidebar.RowStyles.Add(
                 new RowStyle(SizeType.Percent, 45F));
             sidebar.Controls.Add(BuildModernLogCard(), 0, 0);
@@ -227,11 +382,11 @@ namespace ZenStatesDebugTool
             tableLayoutPanel11.ColumnStyles.Add(
                 new ColumnStyle(SizeType.Percent, 100F));
             tableLayoutPanel11.RowStyles.Add(
-                new RowStyle(SizeType.Absolute, 64F));
+                new RowStyle(SizeType.Absolute, 56F));
             tableLayoutPanel11.RowStyles.Add(
                 new RowStyle(SizeType.Percent, 100F));
             tableLayoutPanel11.RowStyles.Add(
-                new RowStyle(SizeType.Absolute, 54F));
+                new RowStyle(SizeType.Absolute, 46F));
 
             TableLayoutPanel heading = new TableLayoutPanel
             {
@@ -239,11 +394,11 @@ namespace ZenStatesDebugTool
                 ColumnCount = 1,
                 Dock = DockStyle.Fill,
                 Margin = new Padding(0),
-                Padding = new Padding(18, 11, 12, 6),
+                Padding = new Padding(14, 8, 10, 4),
                 RowCount = 2
             };
             heading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 25F));
+            heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 23F));
             heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 18F));
             heading.Controls.Add(CreateTextLabel(
                 "运行日志",
@@ -263,7 +418,7 @@ namespace ZenStatesDebugTool
                 "Microsoft YaHei UI",
                 9F,
                 FontStyle.Regular);
-            textBoxResult.Margin = new Padding(18, 8, 10, 8);
+            textBoxResult.Margin = new Padding(14, 6, 8, 6);
 
             TableLayoutPanel actions = new TableLayoutPanel
             {
@@ -271,7 +426,7 @@ namespace ZenStatesDebugTool
                 ColumnCount = 3,
                 Dock = DockStyle.Fill,
                 Margin = new Padding(0),
-                Padding = new Padding(14, 8, 14, 10),
+                Padding = new Padding(10, 6, 10, 8),
                 RowCount = 1
             };
             actions.ColumnStyles.Add(
@@ -309,7 +464,7 @@ namespace ZenStatesDebugTool
                 ColumnCount = 1,
                 Dock = DockStyle.Fill,
                 Margin = new Padding(0),
-                Padding = new Padding(18, 12, 14, 13),
+                Padding = new Padding(14, 9, 10, 10),
                 RowCount = 8
             };
             about.ColumnStyles.Add(
@@ -370,7 +525,7 @@ namespace ZenStatesDebugTool
                 ForeColor = Color.White,
                 ForeHover = Color.White,
                 Margin = new Padding(0, 4, 0, 0),
-                Radius = 8,
+                Radius = ControlCornerRadius,
                 Text = "GitHub · 查看项目",
                 Type = AntdUI.TTypeMini.Primary,
                 WaveSize = 0
@@ -441,7 +596,7 @@ namespace ZenStatesDebugTool
                 BorderWidth = 1F,
                 Dock = DockStyle.Fill,
                 Margin = new Padding(4, 0, 0, 0),
-                Radius = 7,
+                Radius = ControlCornerRadius,
                 Text = text,
                 Type = AntdUI.TTypeMini.Default,
                 WaveSize = 0
@@ -458,7 +613,7 @@ namespace ZenStatesDebugTool
                 Dock = DockStyle.Fill,
                 Margin = new Padding(0),
                 Padding = new Padding(1),
-                Radius = 12,
+                Radius = CardCornerRadius,
                 Shadow = 3,
                 ShadowColor = Color.FromArgb(55, 73, 98),
                 ShadowOffsetY = 2,
@@ -466,8 +621,73 @@ namespace ZenStatesDebugTool
             };
             content.Dock = DockStyle.Fill;
             content.Margin = new Padding(0);
+            content.SizeChanged += delegate
+            {
+                ApplyRoundedContentClip(
+                    content,
+                    CardCornerRadius - 1);
+            };
             card.Controls.Add(content);
+            ApplyRoundedContentClip(
+                content,
+                CardCornerRadius - 1);
             return card;
+        }
+
+        private static void ApplyRoundedContentClip(
+            Control control,
+            int logicalRadius)
+        {
+            if (control.Width <= 1 || control.Height <= 1)
+                return;
+
+            int radius = Math.Max(
+                1,
+                (int)Math.Round(
+                    logicalRadius * control.DeviceDpi / 96F));
+            int diameter = radius * 2;
+            Rectangle bounds = new Rectangle(
+                0,
+                0,
+                control.Width,
+                control.Height);
+
+            using (GraphicsPath path = new GraphicsPath())
+            {
+                path.AddArc(
+                    bounds.Left,
+                    bounds.Top,
+                    diameter,
+                    diameter,
+                    180F,
+                    90F);
+                path.AddArc(
+                    bounds.Right - diameter,
+                    bounds.Top,
+                    diameter,
+                    diameter,
+                    270F,
+                    90F);
+                path.AddArc(
+                    bounds.Right - diameter,
+                    bounds.Bottom - diameter,
+                    diameter,
+                    diameter,
+                    0F,
+                    90F);
+                path.AddArc(
+                    bounds.Left,
+                    bounds.Bottom - diameter,
+                    diameter,
+                    diameter,
+                    90F,
+                    90F);
+                path.CloseFigure();
+
+                Region oldRegion = control.Region;
+                control.Region = new Region(path);
+                oldRegion?.Dispose();
+            }
         }
 
         private AntPanel CreateSectionCard(
@@ -481,11 +701,11 @@ namespace ZenStatesDebugTool
                 ColumnCount = 1,
                 Dock = DockStyle.Fill,
                 Margin = new Padding(0),
-                Padding = new Padding(16, 10, 16, 14),
+                Padding = new Padding(14, 8, 14, 12),
                 RowCount = 2
             };
             host.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            host.RowStyles.Add(new RowStyle(SizeType.Absolute, 50F));
+            host.RowStyles.Add(new RowStyle(SizeType.Absolute, 46F));
             host.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
             TableLayoutPanel heading = new TableLayoutPanel
@@ -497,8 +717,8 @@ namespace ZenStatesDebugTool
                 RowCount = 2
             };
             heading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 26F));
-            heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
+            heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 24F));
+            heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 18F));
             heading.Controls.Add(CreateTextLabel(
                 title,
                 10.5F,
@@ -535,7 +755,7 @@ namespace ZenStatesDebugTool
                 RowCount = 2
             };
             frame.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            frame.RowStyles.Add(new RowStyle(SizeType.Absolute, 70F));
+            frame.RowStyles.Add(new RowStyle(SizeType.Absolute, 62F));
             frame.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
             TableLayoutPanel heading = new TableLayoutPanel
@@ -544,12 +764,12 @@ namespace ZenStatesDebugTool
                 ColumnCount = 1,
                 Dock = DockStyle.Fill,
                 Margin = new Padding(0),
-                Padding = new Padding(4, 4, 0, 5),
+                Padding = new Padding(4, 2, 0, 4),
                 RowCount = 2
             };
             heading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
-            heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 24F));
+            heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
+            heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 22F));
             heading.Controls.Add(CreateTextLabel(
                 title,
                 16F,
@@ -568,7 +788,7 @@ namespace ZenStatesDebugTool
                 ColumnCount = 1,
                 Dock = DockStyle.Fill,
                 Margin = new Padding(0),
-                Padding = new Padding(4, 0, 8, 4),
+                Padding = new Padding(4, 0, 6, 3),
                 RowCount = sections.Length + 1
             };
             body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
@@ -576,9 +796,9 @@ namespace ZenStatesDebugTool
             {
                 body.RowStyles.Add(new RowStyle(
                     SizeType.Absolute,
-                    sections[index].Item2 + 12F));
+                    sections[index].Item2 + 10F));
                 sections[index].Item1.Dock = DockStyle.Fill;
-                sections[index].Item1.Margin = new Padding(0, 0, 0, 12);
+                sections[index].Item1.Margin = new Padding(0, 0, 0, 10);
                 body.Controls.Add(sections[index].Item1, 0, index);
             }
             body.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
@@ -624,33 +844,33 @@ namespace ZenStatesDebugTool
         private void PrepareInput(Control control)
         {
             control.Dock = DockStyle.Fill;
-            control.Margin = new Padding(3, 6, 3, 6);
+            control.Margin = new Padding(3, 4, 3, 4);
         }
 
         private void PrepareAction(Control control)
         {
             control.Dock = DockStyle.None;
             control.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-            control.Height = 36;
-            control.Margin = new Padding(5, 5, 0, 5);
-            control.MinimumSize = new Size(84, 36);
-            control.MaximumSize = new Size(0, 36);
+            control.Height = 28;
+            control.Margin = new Padding(5, 4, 0, 4);
+            control.MinimumSize = new Size(72, 28);
+            control.MaximumSize = new Size(0, 28);
 
             Button button = control as Button;
             if (button != null)
                 button.AutoSize = false;
         }
 
-        private void DetachFromLegacyLayout(Control control)
+        private void DetachControl(Control control)
         {
             if (control == null || control.Parent == null)
                 return;
 
-            Control legacyParent = control.Parent;
-            legacyParent.SuspendLayout();
-            legacyParent.Controls.Remove(control);
-            if (!(legacyParent is TableLayoutPanel))
-                legacyParent.ResumeLayout(false);
+            Control previousParent = control.Parent;
+            previousParent.SuspendLayout();
+            previousParent.Controls.Remove(control);
+            if (!(previousParent is TableLayoutPanel))
+                previousParent.ResumeLayout(false);
         }
 
         private TableLayoutPanel CreateStandardGrid(
@@ -662,7 +882,7 @@ namespace ZenStatesDebugTool
             TableLayoutPanel grid = new TableLayoutPanel
             {
                 BackColor = Color.White,
-                ColumnCount = 4,
+                ColumnCount = 5,
                 Dock = DockStyle.Fill,
                 GrowStyle = TableLayoutPanelGrowStyle.AddRows,
                 Margin = new Padding(0),
@@ -672,11 +892,13 @@ namespace ZenStatesDebugTool
             grid.ColumnStyles.Add(
                 new ColumnStyle(SizeType.Absolute, labelWidth));
             grid.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Percent, 100F));
+                new ColumnStyle(SizeType.Absolute, StandardInputWidth));
             grid.ColumnStyles.Add(
                 new ColumnStyle(SizeType.Absolute, auxiliaryWidth));
             grid.ColumnStyles.Add(
                 new ColumnStyle(SizeType.Absolute, actionWidth));
+            grid.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100F));
             for (int row = 0; row < rowCount; row++)
                 grid.RowStyles.Add(
                     new RowStyle(SizeType.Percent, 100F / rowCount));
@@ -695,21 +917,19 @@ namespace ZenStatesDebugTool
             grid.Controls.Add(CreateFieldLabel(label), 0, row);
             if (input != null)
             {
-                DetachFromLegacyLayout(input);
+                DetachControl(input);
                 PrepareInput(input);
                 grid.Controls.Add(input, 1, row);
-                if (auxiliary == null)
-                    grid.SetColumnSpan(input, 2);
             }
             if (auxiliary != null)
             {
-                DetachFromLegacyLayout(auxiliary);
+                DetachControl(auxiliary);
                 PrepareInput(auxiliary);
                 grid.Controls.Add(auxiliary, 2, row);
             }
             if (action != null)
             {
-                DetachFromLegacyLayout(action);
+                DetachControl(action);
                 PrepareAction(action);
                 grid.Controls.Add(action, 3, row);
             }
@@ -718,7 +938,7 @@ namespace ZenStatesDebugTool
 
         private void BuildCpuPage()
         {
-            TableLayoutPanel tuning = CreateStandardGrid(3, 108F, 132F, 94F);
+            TableLayoutPanel tuning = CreateStandardGrid(3, 108F, 116F, 84F);
             AddGridRow(
                 tuning,
                 0,
@@ -735,12 +955,12 @@ namespace ZenStatesDebugTool
                 buttonApplySC);
 
             checkBoxPROCHOT.Text = "启用 PROCHOT";
-            DetachFromLegacyLayout(checkBoxPROCHOT);
+            DetachControl(checkBoxPROCHOT);
             PrepareInput(checkBoxPROCHOT);
             tuning.Controls.Add(CreateFieldLabel("温控保护"), 0, 2);
             tuning.Controls.Add(checkBoxPROCHOT, 1, 2);
             tuning.SetColumnSpan(checkBoxPROCHOT, 2);
-            DetachFromLegacyLayout(buttonApplyPROCHOT);
+            DetachControl(buttonApplyPROCHOT);
             PrepareAction(buttonApplyPROCHOT);
             tuning.Controls.Add(buttonApplyPROCHOT, 3, 2);
 
@@ -779,12 +999,12 @@ namespace ZenStatesDebugTool
             modeRow.ColumnStyles.Add(
                 new ColumnStyle(SizeType.Percent, 100F));
             modeRow.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Absolute, 188F));
+                new ColumnStyle(SizeType.Absolute, 164F));
             modeRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             radioButtonX3D.Text = "X3D 加速模式";
             radioButtonManualCoreControl.Text = "手动核心控制";
-            DetachFromLegacyLayout(radioButtonX3D);
-            DetachFromLegacyLayout(radioButtonManualCoreControl);
+            DetachControl(radioButtonX3D);
+            DetachControl(radioButtonManualCoreControl);
             PrepareInput(radioButtonX3D);
             PrepareInput(radioButtonManualCoreControl);
 
@@ -829,8 +1049,8 @@ namespace ZenStatesDebugTool
                 tabPageCPU,
                 "CPU 调校",
                 "频率、温控与核心拓扑集中管理",
-                Tuple.Create<Control, float>(tuningCard, 220F),
-                Tuple.Create<Control, float>(coreCard, 264F));
+                Tuple.Create<Control, float>(tuningCard, 176F),
+                Tuple.Create<Control, float>(coreCard, 230F));
         }
 
         private void ConfigureModernCoreGrid()
@@ -874,7 +1094,7 @@ namespace ZenStatesDebugTool
             manual.ColumnStyles.Add(
                 new ColumnStyle(SizeType.Percent, 100F));
             manual.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Absolute, 152F));
+                new ColumnStyle(SizeType.Absolute, 128F));
             manual.RowStyles.Add(
                 new RowStyle(SizeType.Percent, 100F));
             manual.RowStyles.Add(
@@ -955,7 +1175,7 @@ namespace ZenStatesDebugTool
                 tabPageSmu,
                 "SMU 控制台",
                 "底层邮箱访问、监视和诊断工具",
-                Tuple.Create<Control, float>(card, 410F));
+                Tuple.Create<Control, float>(card, 340F));
         }
 
         private TableLayoutPanel CreateActionStrip(params Control[] actions)
@@ -963,7 +1183,7 @@ namespace ZenStatesDebugTool
             TableLayoutPanel strip = new TableLayoutPanel
             {
                 BackColor = Color.White,
-                ColumnCount = actions.Length,
+                ColumnCount = actions.Length + 1,
                 Dock = DockStyle.Fill,
                 Margin = new Padding(0),
                 Padding = new Padding(0, 5, 0, 0),
@@ -971,13 +1191,13 @@ namespace ZenStatesDebugTool
             };
             for (int index = 0; index < actions.Length; index++)
                 strip.ColumnStyles.Add(
-                    new ColumnStyle(
-                        SizeType.Percent,
-                        100F / actions.Length));
+                    new ColumnStyle(SizeType.Absolute, 80F));
+            strip.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100F));
             strip.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             for (int index = 0; index < actions.Length; index++)
             {
-                DetachFromLegacyLayout(actions[index]);
+                DetachControl(actions[index]);
                 PrepareAction(actions[index]);
                 actions[index].Margin = new Padding(
                     index == 0 ? 0 : 5,
@@ -991,7 +1211,7 @@ namespace ZenStatesDebugTool
 
         private void BuildPciPage()
         {
-            TableLayoutPanel access = CreateStandardGrid(2, 108F, 100F, 100F);
+            TableLayoutPanel access = CreateStandardGrid(2, 108F, 0F, 84F);
             AddGridRow(
                 access,
                 0,
@@ -1026,7 +1246,7 @@ namespace ZenStatesDebugTool
             tools.RowStyles.Add(
                 new RowStyle(SizeType.Percent, 56F));
 
-            TableLayoutPanel scan = CreateStandardGrid(2, 108F, 100F, 100F);
+            TableLayoutPanel scan = CreateStandardGrid(2, 108F, 0F, 84F);
             AddGridRow(
                 scan,
                 0,
@@ -1042,7 +1262,7 @@ namespace ZenStatesDebugTool
                 null,
                 ButtonPCIRangeMonitor);
 
-            TableLayoutPanel dump = CreateStandardGrid(3, 108F, 0F, 100F);
+            TableLayoutPanel dump = CreateStandardGrid(3, 108F, 0F, 84F);
             AddGridRow(
                 dump,
                 0,
@@ -1075,13 +1295,13 @@ namespace ZenStatesDebugTool
                 tabPagePci,
                 "PCI 工具",
                 "配置空间访问、范围监视与内存转储",
-                Tuple.Create<Control, float>(accessCard, 172F),
-                Tuple.Create<Control, float>(toolsCard, 310F));
+                Tuple.Create<Control, float>(accessCard, 145F),
+                Tuple.Create<Control, float>(toolsCard, 250F));
         }
 
         private void BuildMsrPage()
         {
-            TableLayoutPanel access = CreateStandardGrid(3, 110F, 0F, 96F);
+            TableLayoutPanel access = CreateStandardGrid(3, 110F, 0F, 84F);
             AddGridRow(
                 access,
                 0,
@@ -1108,7 +1328,7 @@ namespace ZenStatesDebugTool
                 "读取或写入模型特定寄存器",
                 access);
 
-            TableLayoutPanel scan = CreateStandardGrid(2, 110F, 0F, 96F);
+            TableLayoutPanel scan = CreateStandardGrid(2, 110F, 0F, 84F);
             AddGridRow(
                 scan,
                 0,
@@ -1132,8 +1352,8 @@ namespace ZenStatesDebugTool
                 tabPageMsr,
                 "MSR 工具",
                 "模型特定寄存器读写与范围分析",
-                Tuple.Create<Control, float>(accessCard, 220F),
-                Tuple.Create<Control, float>(scanCard, 172F));
+                Tuple.Create<Control, float>(accessCard, 175F),
+                Tuple.Create<Control, float>(scanCard, 145F));
         }
 
         private void BuildCpuidPage()
@@ -1149,11 +1369,11 @@ namespace ZenStatesDebugTool
             query.ColumnStyles.Add(
                 new ColumnStyle(SizeType.Percent, 100F));
             query.RowStyles.Add(
-                new RowStyle(SizeType.Absolute, 48F));
+                new RowStyle(SizeType.Absolute, 42F));
             query.RowStyles.Add(
                 new RowStyle(SizeType.Percent, 100F));
 
-            TableLayoutPanel address = CreateStandardGrid(1, 108F, 100F, 100F);
+            TableLayoutPanel address = CreateStandardGrid(1, 108F, 84F, 84F);
             AddGridRow(
                 address,
                 0,
@@ -1165,28 +1385,25 @@ namespace ZenStatesDebugTool
             TableLayoutPanel registers = new TableLayoutPanel
             {
                 BackColor = Color.White,
-                ColumnCount = 4,
+                ColumnCount = 3,
                 Dock = DockStyle.Fill,
                 Margin = new Padding(0),
-                Padding = new Padding(0, 6, 0, 0),
-                RowCount = 2
+                Padding = new Padding(0, 4, 0, 0),
+                RowCount = 4
             };
             registers.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Absolute, 62F));
+                new ColumnStyle(SizeType.Absolute, 70F));
             registers.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Percent, 50F));
+                new ColumnStyle(SizeType.Absolute, 280F));
             registers.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Absolute, 62F));
-            registers.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Percent, 50F));
-            registers.RowStyles.Add(
-                new RowStyle(SizeType.Percent, 50F));
-            registers.RowStyles.Add(
-                new RowStyle(SizeType.Percent, 50F));
+                new ColumnStyle(SizeType.Percent, 100F));
+            for (int row = 0; row < 4; row++)
+                registers.RowStyles.Add(
+                    new RowStyle(SizeType.Percent, 25F));
             AddRegisterField(registers, "EAX", textBoxCPUIDeax, 0, 0);
-            AddRegisterField(registers, "EBX", textBoxCPUIDebx, 2, 0);
-            AddRegisterField(registers, "ECX", textBoxCPUIDecx, 0, 1);
-            AddRegisterField(registers, "EDX", textBoxCPUIDedx, 2, 1);
+            AddRegisterField(registers, "EBX", textBoxCPUIDebx, 0, 1);
+            AddRegisterField(registers, "ECX", textBoxCPUIDecx, 0, 2);
+            AddRegisterField(registers, "EDX", textBoxCPUIDedx, 0, 3);
             query.Controls.Add(address, 0, 0);
             query.Controls.Add(registers, 0, 1);
 
@@ -1195,7 +1412,7 @@ namespace ZenStatesDebugTool
                 "读取指定 CPUID 叶并查看通用寄存器结果",
                 query);
 
-            TableLayoutPanel decoder = CreateStandardGrid(1, 108F, 0F, 100F);
+            TableLayoutPanel decoder = CreateStandardGrid(1, 108F, 0F, 84F);
             AddGridRow(
                 decoder,
                 0,
@@ -1212,8 +1429,8 @@ namespace ZenStatesDebugTool
                 tabPageCPUID,
                 "CPUID 浏览器",
                 "查询处理器能力叶并解析型号签名",
-                Tuple.Create<Control, float>(queryCard, 244F),
-                Tuple.Create<Control, float>(decoderCard, 142F));
+                Tuple.Create<Control, float>(queryCard, 280F),
+                Tuple.Create<Control, float>(decoderCard, 115F));
         }
 
         private void AddRegisterField(
@@ -1224,7 +1441,7 @@ namespace ZenStatesDebugTool
             int row)
         {
             grid.Controls.Add(CreateFieldLabel(name), column, row);
-            DetachFromLegacyLayout(input);
+            DetachControl(input);
             PrepareInput(input);
             grid.Controls.Add(input, column + 1, row);
         }
@@ -1244,63 +1461,143 @@ namespace ZenStatesDebugTool
                 tabPagePbo,
                 "PBO 调校",
                 "Curve Optimizer、启动配置与最大频率控制",
-                Tuple.Create<Control, float>(card, 482F));
+                Tuple.Create<Control, float>(card, 410F));
         }
 
         private void BuildCurveShaperPage()
         {
+            NumericUpDown[,] values =
+            {
+                { cs_min_low, cs_min_med, cs_min_high },
+                { cs_low_low, cs_low_med, cs_low_high },
+                { cs_med_low, cs_med_med, cs_med_high },
+                { cs_high_low, cs_high_med, cs_high_high },
+                { cs_max_low, cs_max_med, cs_max_high }
+            };
+            Label[] columnLabels = { label31, label32, label33 };
+            Label[] rowLabels =
+            {
+                label34,
+                label35,
+                label36,
+                label37,
+                label38
+            };
+            string[] columnTexts = { "低温", "中温", "高温" };
+            string[] rowTexts = { "最低", "低", "中", "高", "最高" };
+
+            tableLayoutPanel16.SuspendLayout();
+            tableLayoutPanel16.Controls.Clear();
             tableLayoutPanel16.BackColor = Color.White;
             tableLayoutPanel16.ColumnStyles.Clear();
             tableLayoutPanel16.RowStyles.Clear();
-            tableLayoutPanel16.ColumnCount = 6;
+            tableLayoutPanel16.ColumnCount = 5;
             tableLayoutPanel16.Dock = DockStyle.Fill;
             tableLayoutPanel16.Margin = new Padding(0);
-            tableLayoutPanel16.Padding = new Padding(0, 6, 0, 0);
-            tableLayoutPanel16.RowCount = 6;
+            tableLayoutPanel16.Padding = new Padding(0, 2, 0, 0);
+            tableLayoutPanel16.RowCount = 7;
             tableLayoutPanel16.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Absolute, 78F));
+                new ColumnStyle(SizeType.Absolute, 72F));
             tableLayoutPanel16.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Percent, 33.33F));
+                new ColumnStyle(SizeType.Absolute, 118F));
             tableLayoutPanel16.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Percent, 33.33F));
+                new ColumnStyle(SizeType.Absolute, 118F));
             tableLayoutPanel16.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Percent, 33.34F));
+                new ColumnStyle(SizeType.Absolute, 118F));
             tableLayoutPanel16.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Absolute, 14F));
-            tableLayoutPanel16.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Absolute, 100F));
-            for (int row = 0; row < 6; row++)
+                new ColumnStyle(SizeType.Percent, 100F));
+            tableLayoutPanel16.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 30F));
+            for (int row = 1; row < 6; row++)
                 tableLayoutPanel16.RowStyles.Add(
-                    new RowStyle(SizeType.Percent, 16.67F));
+                    new RowStyle(SizeType.Absolute, 33F));
+            tableLayoutPanel16.RowStyles.Add(
+                new RowStyle(SizeType.Percent, 100F));
 
-            foreach (Control control in tableLayoutPanel16.Controls)
+            for (int column = 0; column < 3; column++)
             {
-                if (control is NumericUpDown)
-                    PrepareInput(control);
-                else if (control is Label)
-                {
-                    control.Dock = DockStyle.Fill;
-                    control.Margin = new Padding(0);
-                    ((Label)control).TextAlign = ContentAlignment.MiddleLeft;
-                }
-                else if (control is Button)
-                    PrepareAction(control);
+                columnLabels[column].Dock = DockStyle.Fill;
+                columnLabels[column].Margin = new Padding(3, 0, 3, 0);
+                columnLabels[column].Text = columnTexts[column];
+                columnLabels[column].TextAlign =
+                    ContentAlignment.MiddleCenter;
+                tableLayoutPanel16.Controls.Add(
+                    columnLabels[column],
+                    column + 1,
+                    0);
             }
+            for (int row = 0; row < 5; row++)
+            {
+                rowLabels[row].Dock = DockStyle.Fill;
+                rowLabels[row].Margin = new Padding(0);
+                rowLabels[row].Text = rowTexts[row];
+                rowLabels[row].TextAlign = ContentAlignment.MiddleLeft;
+                tableLayoutPanel16.Controls.Add(rowLabels[row], 0, row + 1);
+                for (int column = 0; column < 3; column++)
+                {
+                    PrepareInput(values[row, column]);
+                    tableLayoutPanel16.Controls.Add(
+                        values[row, column],
+                        column + 1,
+                        row + 1);
+                }
+            }
+            tableLayoutPanel16.ResumeLayout(true);
+
+            TableLayoutPanel actions = new TableLayoutPanel
+            {
+                BackColor = Color.White,
+                ColumnCount = 3,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0),
+                RowCount = 1
+            };
+            actions.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100F));
+            actions.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 80F));
+            actions.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 80F));
+            actions.RowStyles.Add(
+                new RowStyle(SizeType.Percent, 100F));
+            PrepareAction(buttonRefreshCS);
+            PrepareAction(buttonApplyCS);
+            buttonRefreshCS.Margin = new Padding(0, 4, 4, 4);
+            buttonApplyCS.Margin = new Padding(4, 4, 0, 4);
+            actions.Controls.Add(buttonRefreshCS, 1, 0);
+            actions.Controls.Add(buttonApplyCS, 2, 0);
+
+            TableLayoutPanel content = new TableLayoutPanel
+            {
+                BackColor = Color.White,
+                ColumnCount = 1,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0),
+                RowCount = 2
+            };
+            content.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100F));
+            content.RowStyles.Add(
+                new RowStyle(SizeType.Percent, 100F));
+            content.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 38F));
+            content.Controls.Add(tableLayoutPanel16, 0, 0);
+            content.Controls.Add(actions, 0, 1);
 
             AntPanel card = CreateSectionCard(
                 "温区偏移矩阵",
                 "为最低、低、中、高和最高频率区间设置三档温度偏移",
-                tableLayoutPanel16);
+                content);
             CreatePageBody(
                 tabPageCS,
                 "Curve Shaper",
                 "按频率与温度区域精细调整电压曲线",
-                Tuple.Create<Control, float>(card, 390F));
+                Tuple.Create<Control, float>(card, 310F));
         }
 
         private void BuildAcpiPage()
         {
-            TableLayoutPanel grid = CreateStandardGrid(4, 112F, 0F, 100F);
+            TableLayoutPanel grid = CreateStandardGrid(4, 112F, 0F, 84F);
             AddGridRow(
                 grid,
                 0,
@@ -1322,7 +1619,7 @@ namespace ZenStatesDebugTool
                 textBoxWmiArgument,
                 null,
                 null);
-            DetachFromLegacyLayout(buttonWmiCmdSend);
+            DetachControl(buttonWmiCmdSend);
             PrepareAction(buttonWmiCmdSend);
             grid.Controls.Add(buttonWmiCmdSend, 3, 3);
 
@@ -1343,12 +1640,12 @@ namespace ZenStatesDebugTool
                 tabPageWmi,
                 "AMD ACPI",
                 "通过系统固件接口执行受支持的处理器命令",
-                Tuple.Create<Control, float>(card, 280F));
+                Tuple.Create<Control, float>(card, 220F));
         }
 
         private void BuildPstatesPage()
         {
-            TableLayoutPanel state = CreateStandardGrid(4, 106F, 0F, 96F);
+            TableLayoutPanel state = CreateStandardGrid(4, 106F, 0F, 84F);
             AddGridRow(
                 state,
                 0,
@@ -1382,7 +1679,7 @@ namespace ZenStatesDebugTool
                 "读取或写入传统处理器性能状态",
                 state);
 
-            TableLayoutPanel bclk = CreateStandardGrid(1, 106F, 92F, 96F);
+            TableLayoutPanel bclk = CreateStandardGrid(1, 106F, 80F, 84F);
             Label unit = CreateTextLabel(
                 "100 MHz",
                 9F,
@@ -1408,8 +1705,8 @@ namespace ZenStatesDebugTool
                 tabPagePstates,
                 "PStates",
                 "传统 P-State 参数与基准时钟工具",
-                Tuple.Create<Control, float>(stateCard, 248F),
-                Tuple.Create<Control, float>(bclkCard, 142F));
+                Tuple.Create<Control, float>(stateCard, 210F),
+                Tuple.Create<Control, float>(bclkCard, 115F));
         }
 
         private void BuildInfoPage()
@@ -1428,11 +1725,11 @@ namespace ZenStatesDebugTool
                 new ColumnStyle(SizeType.Percent, 100F));
             for (int row = 0; row < 10; row++)
                 tableLayoutPanel3.RowStyles.Add(
-                    new RowStyle(SizeType.Absolute, 31F));
+                    new RowStyle(SizeType.Absolute, 27F));
             tableLayoutPanel3.RowStyles.Add(
                 new RowStyle(SizeType.Percent, 100F));
             tableLayoutPanel3.RowStyles.Add(
-                new RowStyle(SizeType.Absolute, 44F));
+                new RowStyle(SizeType.Absolute, 36F));
 
             foreach (Control control in tableLayoutPanel3.Controls)
             {
@@ -1457,9 +1754,12 @@ namespace ZenStatesDebugTool
                 }
             }
             buttonExport.AutoSize = false;
-            buttonExport.Dock = DockStyle.Left;
-            buttonExport.Margin = new Padding(0, 6, 0, 4);
-            buttonExport.MinimumSize = new Size(118, 34);
+            buttonExport.Dock = DockStyle.None;
+            buttonExport.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            buttonExport.Margin = new Padding(0, 4, 0, 0);
+            buttonExport.MinimumSize = new Size(96, 28);
+            buttonExport.MaximumSize = new Size(96, 28);
+            buttonExport.Size = new Size(96, 28);
             tableLayoutPanel3.SetColumnSpan(buttonExport, 2);
 
             AntPanel card = CreateSectionCard(
@@ -1470,7 +1770,7 @@ namespace ZenStatesDebugTool
                 tabPageInfo,
                 "系统信息",
                 "当前平台的关键硬件与固件标识",
-                Tuple.Create<Control, float>(card, 476F));
+                Tuple.Create<Control, float>(card, 400F));
         }
     }
 }
