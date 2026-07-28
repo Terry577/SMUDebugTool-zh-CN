@@ -1,33 +1,55 @@
 ---
-name: Bug report
-about: Create a report to help us improve
-title: ''
-labels: ''
-assignees: irusanov
-
+name: 错误报告
+about: 报告可复现的软件问题
+title: "[Bug] "
+labels: bug
+assignees: ''
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## 提交前检查
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+- [ ] 我使用的是仓库最新 Release，并已确认问题尚未被报告。
+- [ ] 我已将 ZIP 完整解压，并以管理员身份运行程序。
+- [ ] 如问题涉及 I/O 初始化，我已安装 PawnIO 并重新启动 Windows。
+- [ ] 我了解本工具会修改硬件底层参数，并已恢复到可安全复现问题的设置。
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+## 问题描述
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+请清楚描述实际发生的情况。
 
-**Desktop (please complete the following information):**
- - OS: [e.g. Windows 7]
- - CPU Model [e.g. AMD Ryzen 9 3900X]
-- Motherboard Model [e.g. Asus Crosshair VI Hero]
- - Version [e.g. 22]
+## 复现步骤
 
-**Additional context**
-Add any other context about the problem here.
+1.
+2.
+3.
+
+## 预期结果
+
+请描述你认为应该发生的情况。
+
+## 实际结果与运行日志
+
+请粘贴“运行日志”中的相关内容。请勿包含用户名、序列号、私有路径或其他敏感信息。
+
+```text
+在此粘贴日志
+```
+
+## 环境信息
+
+- SMUDebugTool zh-CN 版本：例如 1.41.1
+- Windows 版本与系统内部版本：
+- CPU 型号：
+- 主板型号：
+- BIOS 版本：
+- PawnIO 是否安装：
+- 显示器分辨率与缩放比例：
+- 问题是否会在其他显示器或缩放比例复现：
+
+## 截图或配置
+
+如有必要，请提供截图或经过脱敏的 `profiles/co_profile.txt`。不要上传包含隐私信息的完整系统报告。
+
+## 补充信息
+
+请提供任何可能有助于定位问题的其他信息。

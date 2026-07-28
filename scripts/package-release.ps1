@@ -86,6 +86,7 @@ try
     }
 
     Copy-Item -LiteralPath (Join-Path $repositoryRoot "README.md") -Destination $packageDirectory
+    Copy-Item -LiteralPath (Join-Path $repositoryRoot "CHANGELOG.md") -Destination $packageDirectory
     Copy-Item -LiteralPath (Join-Path $repositoryRoot "NOTICE.md") -Destination $packageDirectory
     Copy-Item -LiteralPath (Join-Path $repositoryRoot "LICENSE.md") -Destination (Join-Path $packageDirectory "LICENSE")
     Copy-Item -LiteralPath (Join-Path $repositoryRoot "ThirdParty\PawnIO.LICENSE.txt") -Destination $packageDirectory

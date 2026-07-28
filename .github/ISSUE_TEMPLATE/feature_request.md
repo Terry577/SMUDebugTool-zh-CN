@@ -1,20 +1,37 @@
 ---
-name: Feature request
-about: Suggest an idea for this project
-title: ''
-labels: ''
+name: 功能建议
+about: 建议新的功能或界面改进
+title: "[Feature] "
+labels: enhancement
 assignees: ''
-
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+## 需求背景
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+请描述目前遇到的问题、使用场景，以及为什么现有功能无法满足需求。
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+## 建议方案
 
-**Additional context**
-Add any other context or screenshots about the feature request here.
+请描述你希望新增或调整的行为。界面建议可以附带草图或参考截图。
+
+## 预期使用流程
+
+1.
+2.
+3.
+
+## 可选方案
+
+请说明你考虑过的其他解决方式，以及它们的优缺点。
+
+## 硬件与兼容性
+
+如果建议与特定 CPU、CCD、BIOS、主板、驱动或 Windows 版本有关，请提供对应信息。
+
+## 风险说明
+
+如果功能会写入硬件参数，请说明期望的默认值、确认流程、失败处理和恢复方式。
+
+## 补充信息
+
+请提供相关文档、上游实现、截图或其他参考资料。

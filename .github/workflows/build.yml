@@ -31,11 +31,11 @@ jobs:
 
       - name: Package release
         shell: pwsh
-        run: .\scripts\package-release.ps1 -Version "1.41" -Configuration "Release" -OutputDirectory $PWD
+        run: .\scripts\package-release.ps1 -Version "1.41.1" -Configuration "Release" -OutputDirectory $PWD
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SMUDebugTool_zh-CN_v1.41
-          path: SMUDebugTool_zh-CN_v1.41.zip
+          name: SMUDebugTool_zh-CN_v1.41.1
+          path: SMUDebugTool_zh-CN_v1.41.1.zip
           if-no-files-found: error

@@ -1,11 +1,28 @@
-SMUDebugTool hardware access requires a working I/O driver.
+SMUDebugTool zh-CN - PawnIO 安装与 I/O 初始化说明
+==================================================
 
-If SMUDebugTool reports that the I/O module cannot be initialized:
+SMUDebugTool 需要可用的底层 I/O 驱动才能访问处理器与主板寄存器。
 
-1. Make sure the entire ZIP archive has been extracted.
-2. Run SMUDebugTool.exe as administrator.
-3. Install PawnIO from its official website:
+如果程序提示“无法初始化 I/O 模块”或“Error initializing IO module”：
+
+1. 将整个 ZIP 完整解压到普通英文路径。
+2. 不要直接从压缩包预览窗口运行 SMUDebugTool.exe。
+3. 从 PawnIO 官方网站下载并安装驱动：
 
    https://pawnio.eu/
 
-Restart SMUDebugTool after the driver installation has completed.
+4. 安装完成后重新启动 Windows。
+5. 右键 SMUDebugTool.exe，选择“以管理员身份运行”。
+6. 如果仍然失败，检查 Windows 安全中心或第三方安全软件是否拦截驱动、DLL 或程序。
+
+注意：
+
+- 发布包内不附带 PawnIO 驱动安装程序，请只从官方网站获取。
+- 发布包中的 InpOut/WinIo 文件来自原作者 v1.41 Release，用于保持上游兼容性。
+- 移动程序目录后，如曾启用“启动时应用已保存的配置文件”，请取消并重新勾选该选项，以更新计划任务中的程序路径。
+- 本工具能够修改硬件底层参数，错误设置可能导致系统不稳定、数据丢失或硬件损坏。
+
+项目与最新版本：
+
+https://github.com/Terry577/SMUDebugTool-zh-CN
+https://github.com/Terry577/SMUDebugTool-zh-CN/releases/latest
