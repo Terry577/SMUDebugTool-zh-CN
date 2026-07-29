@@ -4,7 +4,7 @@ SMUDebugTool zh-CN 是基于 `irusanov/SMUDebugTool` 的开源修改版本。
 
 ## 项目信息
 
-- 汉化版本：v1.41.2
+- 汉化版本：v1.41.3
 - 上游基线：irusanov/SMUDebugTool v1.41
 - 原项目：https://github.com/irusanov/SMUDebugTool
 - 汉化项目：https://github.com/Terry577/SMUDebugTool-zh-CN
