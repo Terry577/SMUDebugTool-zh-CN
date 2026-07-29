@@ -6,11 +6,17 @@
 
 这是 [irusanov/SMUDebugTool](https://github.com/irusanov/SMUDebugTool) 的简体中文开源修改版，用于读取和写入 AMD Ryzen 平台的频率、PState、SMU、PCI、CPUID、MSR、PBO 和功耗管理表等底层参数。
 
-当前稳定版本为 **v1.41.2**，基于原作者 **v1.41** 开发。
+当前稳定版本为 **v1.41.3**，基于原作者 **v1.41** 开发。
 
 > [下载最新版本](https://github.com/Terry577/SMUDebugTool-zh-CN/releases/latest)
 
 完整版本变更见 [CHANGELOG.md](CHANGELOG.md)。
+
+## v1.41.3 主要改动
+
+- FMax 写入失败时保留并显示 SMU 的真实返回状态。
+- 可区分前置条件不满足、SMU 忙碌、邮箱超时、PCI 读写失败和命令不受支持。
+- 启动时应用已保存 FMax 失败时同样显示具体状态码。
 
 ## v1.41.2 主要改动
 
@@ -120,7 +126,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\scripts\package-release.ps1 `
-  -Version 1.41.2 `
+  -Version 1.41.3 `
   -Configuration Release `
   -OutputDirectory .
 ```

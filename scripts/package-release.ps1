@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $false)]
-    [string]$Version = "1.41.2",
+    [string]$Version = "1.41.3",
 
     [Parameter(Mandatory = $false)]
     [ValidateSet("Debug", "Release")]

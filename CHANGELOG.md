@@ -2,6 +2,14 @@
 
 本文件记录 SMUDebugTool zh-CN 相对于原项目的重要修改。上游自身的完整历史请查看 [`irusanov/SMUDebugTool`](https://github.com/irusanov/SMUDebugTool)。
 
+## [1.41.3] - 2026-07-29
+
+### 修复
+
+- 修复 FMax 写入失败时统一显示“硬件拒绝”、无法判断实际原因的问题。
+- FMax 手动应用和启动应用现在会记录 SMU 原始状态码。
+- 增加对前置条件不满足、SMU 忙碌、邮箱超时、PCI 读写失败和命令不受支持等状态的中文说明。
+
 ## [1.41.2] - 2026-07-28
 
 ### 变更
@@ -63,6 +71,7 @@
 - 汉化主要界面、状态提示、确认对话框、错误信息和数据表文本。
 - 增加修改版署名、GPL-3.0 说明和第三方运行文件许可。
 
-[1.41.2]: https://github.com/Terry577/SMUDebugTool-zh-CN/compare/v1.41.1...master
+[1.41.3]: https://github.com/Terry577/SMUDebugTool-zh-CN/compare/v1.41.2...v1.41.3
+[1.41.2]: https://github.com/Terry577/SMUDebugTool-zh-CN/compare/v1.41.1...v1.41.2
 [1.41.1]: https://github.com/Terry577/SMUDebugTool-zh-CN/releases/tag/v1.41.1
 [1.41]: https://github.com/Terry577/SMUDebugTool-zh-CN/releases/tag/v1.41

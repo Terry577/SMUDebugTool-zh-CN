@@ -302,7 +302,8 @@ namespace ZenStatesDebugTool
             decimal savedFmax =
                 (decimal)numericUpDownFmax.Tag;
             uint targetFmax = decimal.ToUInt32(savedFmax);
-            if (cpu.SetFMax(targetFmax))
+            SMU.Status status = SetFMaxWithStatus(targetFmax);
+            if (status == SMU.Status.OK)
             {
                 numericUpDownFmax.Value = cpu.GetFMax();
                 textBoxResult.Text =
@@ -316,9 +317,75 @@ namespace ZenStatesDebugTool
             {
                 HandleError(
                     string.Format(
-                        "启动时应用 FMax {0} MHz 失败。",
-                        targetFmax));
+                        "启动时应用 FMax {0} MHz 失败。SMU 状态：{1}。",
+                        targetFmax,
+                        DescribeSmuStatus(status)));
             }
+        }
+
+        private SMU.Status SetFMaxWithStatus(uint frequency)
+        {
+            uint[] arguments = new uint[6];
+            arguments[0] = frequency & 0xFFFFF;
+
+            uint command =
+                cpu.smu.Rsmu.SMU_MSG_SetBoostLimitFrequencyAllCores;
+            if (command != 0)
+                return cpu.smu.SendRsmuCommand(
+                    command,
+                    ref arguments);
+
+            command =
+                cpu.smu.Mp1Smu.SMU_MSG_SetBoostLimitFrequencyAllCores;
+            if (command != 0)
+                return cpu.smu.SendMp1Command(
+                    command,
+                    ref arguments);
+
+            return SMU.Status.UNKNOWN_CMD;
+        }
+
+        private static string DescribeSmuStatus(SMU.Status status)
+        {
+            string description;
+            switch ((byte)status)
+            {
+                case 0x01:
+                    description = "成功";
+                    break;
+                case 0xFF:
+                    description = "命令执行失败";
+                    break;
+                case 0xFE:
+                    description = "固件不支持该命令";
+                    break;
+                case 0xFD:
+                    description = "前置条件不满足（请检查 BIOS/PBO 设置）";
+                    break;
+                case 0xFC:
+                    description = "SMU 忙碌";
+                    break;
+                case 0x30:
+                    description = "等待 PCI 总线锁超时";
+                    break;
+                case 0x31:
+                    description = "等待 SMU 邮箱就绪超时";
+                    break;
+                case 0x32:
+                    description = "等待 SMU 命令完成超时";
+                    break;
+                case 0x33:
+                    description = "PCI 读写失败";
+                    break;
+                default:
+                    description = "未知状态";
+                    break;
+            }
+
+            return string.Format(
+                "{0}（0x{1:X2}）",
+                description,
+                (byte)status);
         }
 
         // TODO: Detect OC Mode and return PState freq if on auto
@@ -2802,7 +2869,9 @@ namespace ZenStatesDebugTool
             uint targetFmax = (uint)numericUpDownFmax.Value;
             try
             {
-                if (cpu.SetFMax(targetFmax))
+                SMU.Status status =
+                    SetFMaxWithStatus(targetFmax);
+                if (status == SMU.Status.OK)
                 {
                     uint currentFmax = cpu.GetFMax();
                     numericUpDownFmax.Value = currentFmax;
@@ -2822,8 +2891,9 @@ namespace ZenStatesDebugTool
                         "FMax",
                         false,
                         string.Format(
-                            "硬件拒绝了 {0} MHz 的设置。",
-                            targetFmax));
+                            "未能应用 {0} MHz。SMU 状态：{1}。",
+                            targetFmax,
+                            DescribeSmuStatus(status)));
                 }
             }
             catch (Exception exception)

@@ -1,7 +1,7 @@
 SMUDebugTool zh-CN - .NET Framework 4.8.1
 =========================================
 
-SMUDebugTool zh-CN v1.41.2 targets Microsoft .NET Framework 4.8.1.
+SMUDebugTool zh-CN v1.41.3 targets Microsoft .NET Framework 4.8.1.
 
 Recommended startup:
 
